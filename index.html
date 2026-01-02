@@ -8,6 +8,9 @@
     <script src="https://unpkg.com/lightweight-charts@3.8.0/dist/lightweight-charts.standalone.production.js"></script>
     <style>
         body { background: #131722; color: #d1d4dc; font-family: sans-serif; margin: 0; padding: 0; overflow: hidden; height: 100vh; display: flex; flex-direction: column; }
+        #notice-bar { background: #2962ff; color: white; padding: 5px; font-size: 13px; font-weight: bold; overflow: hidden; white-space: nowrap; }
+        #notice-text { display: inline-block; animation: marquee 15s linear infinite; }
+        @keyframes marquee { from { transform: translateX(100vw); } to { transform: translateX(-100%); } }
         header { background: #1e222d; padding: 10px; display: flex; justify-content: space-between; border-bottom: 1px solid #363a45; font-size: 14px; }
         .main { display: flex; flex: 1; flex-direction: column; overflow: hidden; }
         #chart-box { flex: 3; background: #131722; position: relative; min-height: 250px; }
@@ -23,6 +26,7 @@
     </style>
 </head>
 <body>
+    <div id="notice-bar"><span id="notice-text">공지사항 로딩 중...</span></div>
     <header><div style="color:#2962ff; font-weight:bold;">UPBIT PRO</div><div id="u-id"></div></header>
     <div class="main">
         <div id="chart-box">
@@ -49,17 +53,14 @@
 
         let chart, series;
         function initChart() {
-            if (typeof LightweightCharts === 'undefined') {
-                setTimeout(initChart, 100);
-                return;
-            }
+            if (typeof LightweightCharts === 'undefined') { setTimeout(initChart, 100); return; }
             const container = document.getElementById('chart-container');
             chart = LightweightCharts.createChart(container, {
                 layout: { backgroundColor: '#131722', textColor: '#d1d4dc' },
                 grid: { vertLines: { visible: false }, horzLines: { color: '#2b2b43' } },
                 timeScale: { timeVisible: true, borderVisible: false }
             });
-            series = chart.addCandlestickSeries({ upColor: '#f23645', downColor: '#2962ff', borderVisible: false, wickUpColor: '#f23645', wickDownColor: '#2962ff' });
+            series = chart.addCandlestickSeries({ upColor: '#f23645', downColor: '#2962ff', borderVisible: false });
         }
         initChart();
 
@@ -68,6 +69,7 @@
         socket.on('updateUI', d => updateUI(d));
         socket.on('updateUI_specific', res => { if(res.userId === mid) updateUI(res.data); });
         socket.on('forceReload', () => location.reload());
+        socket.on('updateNotice', msg => { document.getElementById('notice-text').innerText = "📢 " + msg; });
         socket.on('tick', d => {
             if(d.price) document.getElementById('curr-p').innerText = d.price.toLocaleString();
             if(d.ranking) document.getElementById('ranks').innerHTML = "<b style='color:#2962ff'>🏆 실시간 랭킹순위</b><br>" + d.ranking.map((u,i)=>`${i+1}. ${u.id}: ${u.total.toLocaleString()}원`).join('<br>');
@@ -75,7 +77,6 @@
         socket.on('candleUpdate', d => { if(series) { series.setData(d); chart.timeScale().fitContent(); } });
 
         function updateUI(d) {
-            if(!d) return;
             document.getElementById('cash').innerText = (Number(d.cash) || 0).toLocaleString() + " KRW";
             document.getElementById('coin').innerText = (Number(d.coin) || 0).toLocaleString() + " BTC";
         }
