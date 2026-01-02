@@ -78,7 +78,7 @@
         }
         function buy() { socket.emit('buy', 1); }
         function sell() { socket.emit('sell', 1); }
-        function charge() { socket.emit('requestCharge'); alert('충전 요청을 보냈습니다. 관리자 승인을 기다려주세요.'); }
+        function charge() { socket.emit('requestCharge'); alert('충전 요청 완료!'); }
         function send() { socket.emit('sendCoin', { to: document.getElementById('t-id').value, amount: document.getElementById('s-amt').value }); }
         window.onresize = () => { if(chart) chart.resize(document.getElementById('chart-container').clientWidth, document.getElementById('chart-container').clientHeight); };
     </script>
