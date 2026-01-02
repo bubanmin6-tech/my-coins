@@ -11,7 +11,7 @@ let currentPrice = 100;
 let candles = [];
 let db = {};
 let pendingRequests = [];
-let notice = "환영합니다! 실시간 거래소에 오신 것을 환영합니다.";
+let notice = "환영합니다! 실시간 채팅과 거래를 즐겨보세요.";
 let cOpen = 100, cHigh = 100, cLow = 100;
 let lastTime = Math.floor(Date.now() / 1000);
 
@@ -32,6 +32,7 @@ setInterval(() => {
     const drift = Math.floor(Math.random() * 3) + 1;
     if (Math.random() < 0.5) currentPrice += drift; else currentPrice -= drift;
     if (currentPrice < 1) currentPrice = 1;
+    
     if (currentPrice > cHigh) cHigh = currentPrice;
     if (currentPrice < cLow) cLow = currentPrice;
 
@@ -62,7 +63,11 @@ io.on('connection', (socket) => {
         socket.emit('updateNotice', notice);
     });
 
-    socket.on('chat', (msg) => { io.emit('chat', { id: socket.userId, msg: msg }); });
+    socket.on('chat', (msg) => {
+        if(msg.length > 0 && msg.length < 50) {
+            io.emit('chat', { id: socket.userId, msg: msg });
+        }
+    });
 
     socket.on('requestCharge', () => {
         if (!pendingRequests.find(r => r.id === socket.userId)) {
@@ -80,8 +85,6 @@ io.on('connection', (socket) => {
         }
     });
 
-    socket.on('admin_sendNotice', (msg) => { notice = msg; io.emit('updateNotice', notice); });
-
     socket.on('buy', (q) => {
         let u = db[socket.userId]; let cost = currentPrice * Number(q);
         if (u && u.cash >= cost) { u.cash -= cost; u.coin += Number(q); socket.emit('updateUI', u); }
@@ -94,4 +97,4 @@ io.on('connection', (socket) => {
     socket.on('admin_getRequests', () => socket.emit('admin_updateRequests', pendingRequests));
 });
 
-server.listen(3000, '0.0.0.0');
+server.listen(3000, '0.0.0.0', () => console.log('SERVER RUNNING'));
