@@ -1,26 +1,41 @@
-<script>
-    const socket = io();
-    const list = document.getElementById('recharge-list');
-
-    // 서버에서 충전 요청 신호를 받았을 때
-    socket.on('request_recharge_to_admin', (data) => {
-        const item = document.createElement('div');
-        item.id = 'req-' + data.userId;
-        item.innerHTML = `
-            <b>${data.userId}</b> 님이 충전 요청! 
-            <button onclick="approve('${data.userId}')" style="background:green;color:white;">y(승인)</button>
-        `;
-        list.appendChild(item);
-    });
-
-    function approve(id) {
-        socket.emit('admin_command', { type: 'RECHARGE_Y', userId: id });
-        document.getElementById('req-' + id).remove(); // 승인 후 목록에서 삭제
-    }
-
-    function resetAll() {
-        if(confirm('모든 데이터, 가격, 기록을 초기화할까요?')) {
-            socket.emit('admin_command', { type: 'RESET_ALL' });
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>ADMIN PANEL</title>
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        body { background: #1e222d; color: white; font-family: sans-serif; padding: 20px; }
+        section { background: #2a2e39; padding: 15px; border-radius: 8px; margin-bottom: 10px; border: 1px solid #363a45; }
+        input { padding: 10px; border-radius: 4px; border: 1px solid #363a45; background: #131722; color: white; width: 150px; }
+        button { padding: 10px 20px; background: #2962ff; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>UPBIT PRO ADMIN</h1>
+    <section>
+        <h3>💰 가격 강제 조절</h3>
+        <input type="number" id="p-val" placeholder="설정할 가격">
+        <button onclick="setPrice()">가격 즉시 적용</button>
+    </section>
+    <section>
+        <h3>🎁 자산 지급 (ID 필수)</h3>
+        <input type="text" id="u-id" placeholder="유저 ID">
+        <input type="number" id="a-val" placeholder="수량">
+        <button onclick="give('cash')">현금 지급</button>
+        <button onclick="give('coin')" style="background:#f23645">코인 지급</button>
+    </section>
+    <section>
+        <h3>⚠️ 위험 지역</h3>
+        <button onclick="resetAll()" style="background:#434651">전체 유저 데이터 초기화</button>
+    </section>
+    <script>
+        const socket = io();
+        function setPrice() { socket.emit('admin_setPrice', document.getElementById('p-val').value); }
+        function give(type) {
+            socket.emit('admin_giveAsset', { id: document.getElementById('u-id').value, amount: document.getElementById('a-val').value, type: type });
         }
-    }
-</script>
+        function resetAll() { if(confirm("모든 유저의 돈과 코인이 사라집니다. 진행할까요?")) socket.emit('admin_resetAll'); }
+    </script>
+</body>
+</html>
