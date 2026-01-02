@@ -7,9 +7,9 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
-let currentPrice = 100; 
-let candles = []; 
-let db = {}; 
+let currentPrice = 100;
+let candles = [];
+let db = {};
 let cOpen = 100, cHigh = 100, cLow = 100;
 let lastTime = Math.floor(Date.now() / 1000);
 
@@ -36,8 +36,8 @@ setInterval(() => {
     if (currentPrice > cHigh) cHigh = currentPrice;
     if (currentPrice < cLow) cLow = currentPrice;
 
-    let ranking = Object.values(db).map(u => ({ 
-        id: u.id, 
+    let ranking = Object.values(db).map(u => ({
+        id: u.id,
         total: Math.floor(u.cash + (u.coin * currentPrice))
     })).sort((a, b) => b.total - a.total).slice(0, 10);
 
@@ -61,35 +61,29 @@ io.on('connection', (socket) => {
         socket.emit('init', db[uid]);
         socket.emit('candleUpdate', candles);
     });
-
     socket.on('buy', (q) => {
         let u = db[socket.userId]; let cost = currentPrice * Number(q);
         if (u && u.cash >= cost) { u.cash -= cost; u.coin += Number(q); socket.emit('updateUI', u); }
     });
-
     socket.on('sell', (q) => {
         let u = db[socket.userId];
         if (u && u.coin >= Number(q)) { u.cash += currentPrice * Number(q); u.coin -= Number(q); socket.emit('updateUI', u); }
     });
-
     socket.on('requestCharge', () => {
         if(db[socket.userId]) { db[socket.userId].cash += 500; socket.emit('updateUI', db[socket.userId]); }
     });
-
     socket.on('sendCoin', (d) => {
         let me = db[socket.userId], f = db[d.to], a = Number(d.amount);
-        if (me && f && me.coin >= a && a > 0) { 
-            me.coin -= a; f.coin += a; 
+        if (me && f && me.coin >= a && a > 0) {
+            me.coin -= a; f.coin += a;
             socket.emit('updateUI', me);
             io.emit('updateUI_specific', { userId: d.to, data: f });
         }
     });
-
     socket.on('admin_setPrice', (p) => {
         currentPrice = Number(p);
         io.emit('tick', { price: currentPrice });
     });
-
     socket.on('admin_giveAsset', (d) => {
         let target = db[d.id];
         if (target) {
@@ -98,7 +92,6 @@ io.on('connection', (socket) => {
             io.emit('updateUI_specific', { userId: d.id, data: target });
         }
     });
-
     socket.on('admin_resetAll', () => {
         db = {};
         io.emit('forceReload');
