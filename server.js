@@ -125,9 +125,7 @@ io.on('connection', (socket) => {
     });
 
     socket.on('admin_resetAll', () => {
-        db = {};
-        pendingRequests = [];
-        currentPrice = 100;
+        db = {}; pendingRequests = []; currentPrice = 100;
         cOpen = 100; cHigh = 100; cLow = 100;
         lastTime = Math.floor(Date.now() / 1000);
         initCandles();
