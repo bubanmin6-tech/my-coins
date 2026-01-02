@@ -11,7 +11,7 @@ let currentPrice = 100;
 let candles = [];
 let db = {};
 let pendingRequests = [];
-let notice = "환영합니다! 매너 있는 거래 부탁드립니다.";
+let notice = "환영합니다! 실시간 채팅과 보이스를 즐겨보세요.";
 let cOpen = 100, cHigh = 100, cLow = 100;
 let lastTime = Math.floor(Date.now() / 1000);
 
@@ -37,13 +37,11 @@ setInterval(() => {
     if (currentPrice < 1) currentPrice = 1;
     if (currentPrice > cHigh) cHigh = currentPrice;
     if (currentPrice < cLow) cLow = currentPrice;
-
     let ranking = Object.values(db).map(u => ({
         id: u.id,
         total: Math.floor((Number(u.cash) || 0) + ((Number(u.coin) || 0) * currentPrice))
     })).sort((a, b) => b.total - a.total).slice(0, 10);
-
-    io.emit('tick', { price: currentPrice, ranking: ranking, notice: notice });
+    io.emit('tick', { price: currentPrice, ranking: ranking });
 }, 1000);
 
 setInterval(() => {
@@ -65,10 +63,17 @@ io.on('connection', (socket) => {
         socket.emit('updateNotice', notice);
     });
 
+    socket.on('chat', (msg) => {
+        io.emit('chat', { id: socket.userId, msg: msg });
+    });
+
+    socket.on('voice', (data) => {
+        socket.broadcast.emit('voice', data);
+    });
+
     socket.on('requestCharge', () => {
-        const uid = socket.userId;
-        if (!pendingRequests.find(r => r.id === uid)) {
-            pendingRequests.push({ id: uid, amount: 500, time: new Date().toLocaleTimeString() });
+        if (!pendingRequests.find(r => r.id === socket.userId)) {
+            pendingRequests.push({ id: socket.userId, amount: 500, time: new Date().toLocaleTimeString() });
             io.emit('admin_updateRequests', pendingRequests);
         }
     });
@@ -82,50 +87,16 @@ io.on('connection', (socket) => {
         }
     });
 
-    socket.on('admin_reject', (uid) => {
-        pendingRequests = pendingRequests.filter(r => r.id !== uid);
-        io.emit('admin_updateRequests', pendingRequests);
-    });
-
-    socket.on('admin_sendNotice', (msg) => {
-        notice = msg;
-        io.emit('updateNotice', notice);
-    });
-
+    socket.on('admin_sendNotice', (msg) => { notice = msg; io.emit('updateNotice', notice); });
     socket.on('buy', (q) => {
-        let u = db[socket.userId];
-        let cost = currentPrice * Number(q);
-        if (u && u.cash >= cost) {
-            u.cash -= cost; u.coin += Number(q);
-            socket.emit('updateUI', u);
-        }
+        let u = db[socket.userId]; let cost = currentPrice * Number(q);
+        if (u && u.cash >= cost) { u.cash -= cost; u.coin += Number(q); socket.emit('updateUI', u); }
     });
-
     socket.on('sell', (q) => {
-        let u = db[socket.userId];
-        if (u && u.coin >= Number(q)) {
-            u.cash += currentPrice * Number(q); u.coin -= Number(q);
-            socket.emit('updateUI', u);
-        }
+        let u = db[socket.userId]; if (u && u.coin >= Number(q)) { u.cash += currentPrice * Number(q); u.coin -= Number(q); socket.emit('updateUI', u); }
     });
-
-    socket.on('sendCoin', (d) => {
-        let me = db[socket.userId], f = db[d.to], a = Number(d.amount);
-        if (me && f && me.coin >= a && a > 0) {
-            me.coin -= a; f.coin += a;
-            socket.emit('updateUI', me);
-            io.emit('updateUI_specific', { userId: d.to, data: f });
-        }
-    });
-
     socket.on('admin_getRequests', () => socket.emit('admin_updateRequests', pendingRequests));
-    socket.on('admin_setPrice', (p) => { currentPrice = Number(p); io.emit('tick', { price: currentPrice }); });
-    socket.on('admin_giveAsset', (d) => {
-        let t = db[d.id];
-        if(t){ if(d.type==='cash') t.cash+=Number(d.amount); else t.coin+=Number(d.amount); io.emit('updateUI_specific', {userId:d.id, data:t}); }
-    });
-    socket.on('admin_resetAll', () => { db = {}; io.emit('forceReload'); });
 });
 
-const PORT = process.env.PORT || 3000;
-server.listen(PORT, '0.0.0.0', () => console.log('SERVER RUNNING'));
+const PORT = 3000;
+server.listen(PORT, '0.0.0.0', () => console.log('RUNNING'));
