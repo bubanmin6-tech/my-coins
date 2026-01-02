@@ -5,13 +5,13 @@ const path = require('path');
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server);
+const io = new Server(server, { cors: { origin: "*" } });
 
 let currentPrice = 100;
 let candles = [];
 let db = {};
 let pendingRequests = [];
-let notice = "환영합니다! 실시간 채팅과 보이스를 즐겨보세요.";
+let notice = "환영합니다! 채팅과 보이스를 사용해보세요.";
 let cOpen = 100, cHigh = 100, cLow = 100;
 let lastTime = Math.floor(Date.now() / 1000);
 
@@ -31,24 +31,25 @@ app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'admin.html'))
 
 setInterval(() => {
     const r = Math.random() * 100;
-    const drift = Math.floor(Math.random() * 5) + 1;
-    if (r < 50) currentPrice += drift;
-    else currentPrice -= drift;
+    const drift = Math.floor(Math.random() * 3) + 1;
+    if (r < 50) currentPrice += drift; else currentPrice -= drift;
     if (currentPrice < 1) currentPrice = 1;
     if (currentPrice > cHigh) cHigh = currentPrice;
     if (currentPrice < cLow) cLow = currentPrice;
+
     let ranking = Object.values(db).map(u => ({
         id: u.id,
         total: Math.floor((Number(u.cash) || 0) + ((Number(u.coin) || 0) * currentPrice))
-    })).sort((a, b) => b.total - a.total).slice(0, 10);
+    })).sort((a, b) => b.total - a.total).slice(0, 5);
+
     io.emit('tick', { price: currentPrice, ranking: ranking });
-}, 1000);
+}, 2000);
 
 setInterval(() => {
     lastTime += 5;
     const candle = { time: lastTime, open: cOpen, high: cHigh, low: cLow, close: currentPrice };
     candles.push(candle);
-    if (candles.length > 200) candles.shift();
+    if (candles.length > 100) candles.shift();
     cOpen = currentPrice; cHigh = currentPrice; cLow = currentPrice;
     io.emit('candleUpdate', candles);
 }, 5000);
@@ -63,14 +64,8 @@ io.on('connection', (socket) => {
         socket.emit('updateNotice', notice);
     });
 
-    socket.on('chat', (msg) => {
-        io.emit('chat', { id: socket.userId, msg: msg });
-    });
-
-    socket.on('voice', (data) => {
-        socket.broadcast.emit('voice', data);
-    });
-
+    socket.on('chat', (msg) => { io.emit('chat', { id: socket.userId, msg: msg }); });
+    socket.on('voice', (data) => { socket.broadcast.emit('voice', data); });
     socket.on('requestCharge', () => {
         if (!pendingRequests.find(r => r.id === socket.userId)) {
             pendingRequests.push({ id: socket.userId, amount: 500, time: new Date().toLocaleTimeString() });
@@ -98,5 +93,4 @@ io.on('connection', (socket) => {
     socket.on('admin_getRequests', () => socket.emit('admin_updateRequests', pendingRequests));
 });
 
-const PORT = 3000;
-server.listen(PORT, '0.0.0.0', () => console.log('RUNNING'));
+server.listen(3000, '0.0.0.0');
