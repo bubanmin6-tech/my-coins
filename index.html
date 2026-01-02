@@ -2,7 +2,6 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>UPBIT PRO</title>
     <script src="/socket.io/socket.io.js"></script>
     <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
@@ -13,7 +12,7 @@
         .left-content { flex: 2.5; display: flex; flex-direction: column; border-right: 1px solid #363a45; }
         .right-sidebar { flex: 1; display: flex; flex-direction: column; background: #1e222d; padding: 15px; gap: 10px; overflow-y: auto; }
         #chart-container { flex: 1; width: 100%; }
-        .chat-area { height: 160px; background: #131722; border-top: 1px solid #363a45; display: flex; flex-direction: column; }
+        .chat-area { height: 180px; background: #131722; border-top: 1px solid #363a45; display: flex; flex-direction: column; }
         #chat-log { flex: 1; overflow-y: auto; padding: 10px; font-size: 13px; }
         .price-tag { font-size: 30px; font-weight: bold; color: #f23645; padding: 10px; }
         input, button { padding: 10px; border-radius: 4px; border: none; }
@@ -30,7 +29,7 @@
             <div class="chat-area">
                 <div id="chat-log"></div>
                 <div style="display:flex; padding:5px; gap:5px;">
-                    <input id="chat-in" placeholder="메세지 입력..." style="flex:1" onkeypress="if(event.keyCode==13)sendChat()">
+                    <input id="chat-in" placeholder="채팅 입력..." style="flex:1" onkeypress="if(event.keyCode==13)sendChat()">
                     <button onclick="sendChat()">전송</button>
                 </div>
             </div>
