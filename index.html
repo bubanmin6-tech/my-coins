@@ -2,56 +2,79 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>UPBIT PRO - 전문 거래소</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>UPBIT PRO</title>
     <script src="/socket.io/socket.io.js"></script>
     <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
     <style>
-        body { background-color: #131722; color: #d1d4dc; font-family: sans-serif; margin: 0; overflow: hidden; }
-        .main-container { display: flex; height: 100vh; }
-        #chart-container { flex: 3; position: relative; background: #131722; border-right: 1px solid #363a45; }
-        #tv-chart { width: 100%; height: calc(100% - 80px); }
-        .sidebar { flex: 1; display: flex; flex-direction: column; padding: 15px; background-color: #1e222d; gap: 10px; overflow-y: auto; }
-        .price-display { font-size: 40px; font-weight: bold; color: #f23645; padding: 20px; }
-        .asset-card { background: #2a2e39; padding: 15px; border-radius: 8px; border-left: 4px solid #2962ff; }
-        .btn-group { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        button { padding: 15px; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 16px; }
+        body { background-color: #131722; color: #d1d4dc; font-family: sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        header { background-color: #1e222d; padding: 10px 15px; display: flex; justify-content: space-between; border-bottom: 1px solid #363a45; font-size: 14px; }
+        .main-container { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
+        #chart-container { flex: 2; position: relative; min-height: 250px; }
+        .sidebar { flex: 1.5; display: flex; flex-direction: column; padding: 10px; background-color: #1e222d; gap: 8px; overflow-y: auto; border-top: 1px solid #363a45; }
+        .price-display { font-size: 32px; font-weight: bold; color: #f23645; padding: 10px 15px; }
+        .asset-card { background: #2a2e39; padding: 12px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; }
+        .btn-group { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        button { padding: 12px; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; }
         .buy-btn { background-color: #f23645; color: white; }
         .sell-btn { background-color: #2962ff; color: white; }
+        .sub-btn { background-color: #434651; color: white; padding: 10px; font-size: 12px; }
+        input { background: #131722; border: 1px solid #363a45; color: white; padding: 8px; border-radius: 4px; }
+        @media (min-width: 768px) { .main-container { flex-direction: row; } .sidebar { flex: 1; border-top: none; border-left: 1px solid #363a45; } }
     </style>
 </head>
 <body>
+    <header>
+        <div style="color:#2962ff; font-weight:bold;">UPBIT PRO</div>
+        <div>ID: <span id="my-id" style="color:white"></span></div>
+    </header>
     <div class="main-container">
         <div id="chart-container">
             <div class="price-display" id="current-price">100</div>
-            <div id="tv-chart"></div>
+            <div id="tv-chart" style="width:100%; height:calc(100% - 60px);"></div>
         </div>
         <div class="sidebar">
             <div class="asset-card">
-                <div style="font-size:12px; color:#848e9c">아이디: <b id="my-id" style="color:white"></b></div>
-                <div style="font-size:20px; margin-top:10px;"><span id="my-cash">500</span> KRW</div>
-                <div style="font-size:20px;"><span id="my-coin">0</span> BTC</div>
+                <div>
+                    <div style="font-size:11px; color:#848e9c">현금</div>
+                    <div style="font-size:16px;"><span id="my-cash">500</span> KRW</div>
+                </div>
+                <div style="text-align:right;">
+                    <div style="font-size:11px; color:#848e9c">코인</div>
+                    <div style="font-size:16px;"><span id="my-coin">0</span> BTC</div>
+                </div>
             </div>
             <div class="btn-group">
                 <button class="buy-btn" onclick="buyCoin()">매수</button>
                 <button class="sell-btn" onclick="sellCoin()">매도</button>
             </div>
+            <div style="background:#2a2e39; padding:10px; border-radius:8px; display:flex; flex-direction:column; gap:5px;">
+                <input type="text" id="target-id" placeholder="상대방 ID">
+                <input type="number" id="send-amount" placeholder="개수">
+                <button class="sub-btn" onclick="sendCoin()">코인 보내기</button>
             </div>
+            <button class="sub-btn" onclick="reqCharge()" style="background:#e2a400">⚡ 500원 충전</button>
+            <div style="background:#2a2e39; padding:10px; border-radius:8px;">
+                <div style="font-weight:bold; color:#2962ff; font-size:12px; margin-bottom:5px;">🏆 실시간 랭킹</div>
+                <div id="rank-list" style="font-size:11px;"></div>
+            </div>
+        </div>
     </div>
-
     <script>
         const socket = io();
         let myId = localStorage.getItem('savedId');
         if (!myId) {
-            myId = prompt("아이디를 입력하세요") || "user_" + Math.floor(Math.random()*1000);
+            myId = prompt("아이디 입력") || "user_" + Math.floor(Math.random()*1000);
             localStorage.setItem('savedId', myId);
         }
         document.getElementById('my-id').innerText = myId;
 
-        // 차트 초기화
         const chart = LightweightCharts.createChart(document.getElementById('tv-chart'), {
-            layout: { backgroundColor: '#131722', textColor: '#d1d4dc' },
+            layout: { background: { color: '#131722' }, textColor: '#d1d4dc' },
             grid: { vertLines: { color: '#2b2b43' }, horzLines: { color: '#2b2b43' } },
-            timeScale: { timeVisible: true, secondsVisible: false }
+            timeScale: { timeVisible: true, borderVisible: false },
+            handleScroll: { mouseWheel: true, pressedMouseMove: true, horzTouchDrag: true },
+            handleScale: { mouseWheel: true, pinch: true }
         });
         const candleSeries = chart.addCandlestickSeries({
             upColor: '#f23645', downColor: '#2962ff', borderDownColor: '#2962ff',
@@ -59,26 +82,32 @@
         });
 
         socket.emit('join', myId);
-
         socket.on('init', (data) => updateUI(data));
         socket.on('updateUI', (data) => updateUI(data));
-        socket.on('priceUpdate', (data) => {
+        socket.on('tick', (data) => {
             document.getElementById('current-price').innerText = data.price.toLocaleString();
+            updateRanking(data.ranking);
         });
-
-        socket.on('candleUpdate', (candles) => {
-            // 시간 데이터가 겹치지 않게 정렬 후 삽입
-            const sortedCandles = candles.sort((a, b) => a.time - b.time);
-            candleSeries.setData(sortedCandles);
-        });
+        socket.on('candleUpdate', (data) => { candleSeries.setData(data); });
 
         function updateUI(data) {
             document.getElementById('my-cash').innerText = data.cash.toLocaleString();
             document.getElementById('my-coin').innerText = data.coin.toLocaleString();
         }
-
+        function updateRanking(list) {
+            document.getElementById('rank-list').innerHTML = list.map((u, i) => `
+                <div style="display:flex; justify-content:space-between; margin:2px 0;">
+                    <span>${i+1}. ${u.id}</span><span>${u.total.toLocaleString()}원</span>
+                </div>`).join('');
+        }
         function buyCoin() { socket.emit('buy', 1); }
         function sellCoin() { socket.emit('sell', 1); }
+        function reqCharge() { socket.emit('requestCharge'); }
+        function sendCoin() {
+            const to = document.getElementById('target-id').value;
+            const amt = document.getElementById('send-amount').value;
+            socket.emit('sendCoin', { to: to, amount: amt });
+        }
     </script>
 </body>
 </html>
