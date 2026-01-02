@@ -64,7 +64,7 @@ io.on('connection', (socket) => {
     });
 
     socket.on('chat', (msg) => {
-        if(msg.length > 0 && msg.length < 50) {
+        if(msg && msg.length < 50) {
             io.emit('chat', { id: socket.userId, msg: msg });
         }
     });
