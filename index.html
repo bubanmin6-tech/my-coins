@@ -5,58 +5,71 @@
     <title>업비트 PRO - 실시간 코인 거래소</title>
     <script src="/socket.io/socket.io.js"></script>
     <style>
-        /* 민님의 원래 예쁜 디자인 (업비트 스타일) */
         body { background-color: #131722; color: #d1d4dc; font-family: 'Inter', sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         header { background-color: #1e222d; padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #363a45; }
         .logo { color: #2962ff; font-size: 20px; font-weight: bold; }
         .main-container { display: flex; flex: 1; overflow: hidden; }
         .chart-section { flex: 3; display: flex; flex-direction: column; border-right: 1px solid #363a45; padding: 10px; }
-        #chart { flex: 1; display: flex; align-items: flex-end; gap: 2px; padding: 10px; background-color: #1e222d; border-radius: 4px; position: relative; }
+        #chart { flex: 1; display: flex; align-items: flex-end; gap: 2px; padding: 10px; background-color: #1e222d; border-radius: 4px; position: relative; min-height: 200px; }
         .candle { flex: 1; position: relative; min-width: 5px; }
         .wick { width: 1px; background-color: #5d606b; position: absolute; left: 50%; transform: translateX(-50%); }
         .body { width: 100%; position: absolute; border-radius: 1px; }
-        .sidebar { flex: 1; display: flex; flex-direction: column; padding: 20px; background-color: #1e222d; gap: 20px; }
+        .sidebar { flex: 1; display: flex; flex-direction: column; padding: 20px; background-color: #1e222d; gap: 15px; overflow-y: auto; }
         .asset-card { background: #2a2e39; padding: 15px; border-radius: 8px; border-left: 4px solid #2962ff; }
         .price-display { font-size: 32px; font-weight: bold; color: #f23645; margin: 10px 0; }
-        .btn-group { display: grid; grid-template-columns: 1-1; gap: 10px; }
+        .rank-section { background: #2a2e39; padding: 10px; border-radius: 8px; font-size: 13px; }
+        .rank-item { display: flex; justify-content: space-between; margin: 5px 0; padding-bottom: 2px; border-bottom: 1px solid #3e4352; }
+        .btn-group { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
         button { padding: 12px; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; transition: 0.2s; }
         .buy-btn { background-color: #f23645; color: white; }
         .sell-btn { background-color: #2962ff; color: white; }
-        .charge-btn { background-color: #5d606b; color: white; margin-top: 10px; }
-        button:hover { opacity: 0.8; }
-        #log-container { height: 150px; overflow-y: auto; background: #131722; padding: 10px; font-size: 12px; border-radius: 4px; color: #848e9c; }
+        .sub-btn { background-color: #434651; color: white; font-size: 12px; }
+        #log-container { flex: 1; min-height: 100px; background: #131722; padding: 10px; font-size: 12px; border-radius: 4px; color: #848e9c; overflow-y: auto; display: flex; flex-direction: column-reverse; }
+        .transfer-section { display: flex; flex-direction: column; gap: 5px; background: #2a2e39; padding: 10px; border-radius: 8px; }
+        input { background: #131722; border: 1px solid #363a45; color: white; padding: 8px; border-radius: 4px; }
     </style>
 </head>
 <body>
     <header>
         <div class="logo">UPBIT PRO</div>
-        <div id="user-status">접속중: <span id="my-id">...</span></div>
+        <div>아이디: <span id="my-id" style="color:#2962ff"></span></div>
     </header>
 
     <div class="main-container">
         <div class="chart-section">
-            <div style="margin-bottom:10px;">실시간 비트코인 시세 (BTC/KRW)</div>
+            <div>실시간 비트코인 시세 (BTC/KRW)</div>
             <div class="price-display" id="current-price">100</div>
             <div id="chart"></div>
         </div>
 
         <div class="sidebar">
             <div class="asset-card">
-                <div>보유 현금</div>
-                <div style="font-size:20px; color:white;"><span id="my-cash">500</span> 원</div>
-                <div style="margin-top:10px;">보유 코인</div>
-                <div style="font-size:20px; color:white;"><span id="my-coin">0</span> 개</div>
+                <div style="font-size:12px; color:#848e9c">보유 자산</div>
+                <div style="font-size:18px; color:white; margin:5px 0;"><span id="my-cash">500</span> KRW</div>
+                <div style="font-size:18px; color:white;"><span id="my-coin">0</span> BTC</div>
             </div>
 
             <div class="btn-group">
                 <button class="buy-btn" onclick="buyCoin()">매수</button>
                 <button class="sell-btn" onclick="sellCoin()">매도</button>
             </div>
-            <button class="charge-btn" onclick="reqCharge()">🔌 충전 요청</button>
 
-            <div id="log-container">
-                <div>[시스템] 서버에 연결되었습니다.</div>
+            <div class="transfer-section">
+                <div style="font-size:12px">코인 송금</div>
+                <input type="text" id="target-id" placeholder="상대방 ID">
+                <input type="number" id="send-amount" placeholder="송금 개수">
+                <button class="sub-btn" onclick="sendCoin()">송금하기</button>
             </div>
+
+            <button class="sub-btn" onclick="reqCharge()" style="background:#e2a400">⚡ 충전 요청 (500원)</button>
+            <button class="sub-btn" onclick="clearLogs()">🧹 기록 삭제</button>
+
+            <div class="rank-section">
+                <div style="font-weight:bold; margin-bottom:8px; color:#2962ff">🏆 실시간 자산 랭킹</div>
+                <div id="rank-list"></div>
+            </div>
+
+            <div id="log-container"></div>
         </div>
     </div>
 
@@ -67,12 +80,9 @@
 
         socket.emit('join', myId);
 
-        // --- 실시간 데이터 수신 ---
         socket.on('init', (data) => updateUI(data));
         socket.on('updateUI', (data) => updateUI(data));
-        socket.on('updateUI_specific', (res) => {
-            if(res.userId === myId) updateUI(res.data);
-        });
+        socket.on('updateUI_specific', (res) => { if(res.userId === myId) updateUI(res.data); });
 
         socket.on('priceUpdate', (data) => {
             document.getElementById('current-price').innerText = data.price.toLocaleString();
@@ -81,39 +91,36 @@
         socket.on('candleUpdate', (candles) => {
             const chart = document.getElementById('chart');
             chart.innerHTML = '';
-            const maxVal = Math.max(...candles.map(c => c.high)) * 1.1;
-            
+            const maxVal = Math.max(...candles.map(c => c.high), 1);
             candles.forEach(c => {
                 const candle = document.createElement('div');
                 candle.className = 'candle';
                 const isUp = c.close >= c.open;
                 const color = isUp ? '#f23645' : '#2962ff';
-                
-                const height = (Math.abs(c.close - c.open) / maxVal) * 300;
-                const bottom = (Math.min(c.open, c.close) / maxVal) * 300;
-                const wickHeight = (c.high - c.low) / maxVal * 300;
-                const wickBottom = c.low / maxVal * 300;
-
-                candle.innerHTML = `
-                    <div class="wick" style="height:${wickHeight}px; bottom:${wickBottom}px;"></div>
-                    <div class="body" style="height:${height}px; bottom:${bottom}px; background-color:${color};"></div>
-                `;
+                const h = (Math.abs(c.close - c.open) / maxVal) * 200;
+                const b = (Math.min(c.open, c.close) / maxVal) * 200;
+                const wh = (c.high - c.low) / maxVal * 200;
+                const wb = c.low / maxVal * 200;
+                candle.innerHTML = `<div class="wick" style="height:${wh}px; bottom:${wb}px;"></div>
+                                 <div class="body" style="height:${h}px; bottom:${b}px; background-color:${color};"></div>`;
                 chart.appendChild(candle);
             });
         });
 
-        // 관리자 알림 및 초기화
-        socket.on('adminNotice', (msg) => {
-            addLog("[공지] " + msg);
-            alert("📢 공지: " + msg);
+        socket.on('updateRanking', (list) => {
+            const container = document.getElementById('rank-list');
+            container.innerHTML = list.map((u, i) => `
+                <div class="rank-item">
+                    <span>${i+1}. ${u.id}</span>
+                    <span style="color:white">${u.total.toLocaleString()}원</span>
+                </div>
+            `).join('');
         });
 
-        socket.on('force_reload', () => {
-            alert("서버가 초기화되었습니다.");
-            location.reload();
-        });
+        socket.on('adminNotice', (msg) => { alert("📢 [공지]: " + msg); addLog("공지: " + msg); });
+        socket.on('system_msg', (msg) => { addLog(msg); });
+        socket.on('force_reload', () => { location.reload(); });
 
-        // --- 기능 함수 ---
         function updateUI(data) {
             document.getElementById('my-cash').innerText = data.cash.toLocaleString();
             document.getElementById('my-coin').innerText = data.coin.toLocaleString();
@@ -121,15 +128,20 @@
 
         function buyCoin() { socket.emit('buy', 1); }
         function sellCoin() { socket.emit('sell', 1); }
-        function reqCharge() { 
-            socket.emit('requestCharge'); 
-            addLog("[요청] 충전 승인을 요청했습니다.");
+        function reqCharge() { socket.emit('requestCharge'); addLog("충전 요청을 보냈습니다."); }
+        function clearLogs() { document.getElementById('log-container').innerHTML = ''; }
+        
+        function sendCoin() {
+            const toId = document.getElementById('target-id').value;
+            const amount = document.getElementById('send-amount').value;
+            if(!toId || !amount) return alert("정보를 입력하세요.");
+            socket.emit('sendCoin', { toId, amount });
         }
 
         function addLog(msg) {
             const container = document.getElementById('log-container');
             const div = document.createElement('div');
-            div.innerText = msg;
+            div.innerText = `> ${msg}`;
             container.prepend(div);
         }
     </script>
