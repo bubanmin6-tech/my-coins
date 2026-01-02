@@ -2,51 +2,43 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>업비트 PRO - 실시간 코인 거래소</title>
+    <title>UPBIT PRO - 전문 거래소</title>
     <script src="/socket.io/socket.io.js"></script>
+    <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
     <style>
-        body { background-color: #131722; color: #d1d4dc; font-family: 'Inter', sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
-        header { background-color: #1e222d; padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #363a45; }
-        .logo { color: #2962ff; font-size: 20px; font-weight: bold; }
+        body { background-color: #131722; color: #d1d4dc; font-family: sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        header { background-color: #1e222d; padding: 10px 20px; display: flex; justify-content: space-between; border-bottom: 1px solid #363a45; }
         .main-container { display: flex; flex: 1; overflow: hidden; }
-        .chart-section { flex: 3; display: flex; flex-direction: column; border-right: 1px solid #363a45; padding: 10px; }
-        #chart { flex: 1; display: flex; align-items: flex-end; gap: 2px; padding: 10px; background-color: #1e222d; border-radius: 4px; position: relative; min-height: 200px; }
-        .candle { flex: 1; position: relative; min-width: 5px; }
-        .wick { width: 1px; background-color: #5d606b; position: absolute; left: 50%; transform: translateX(-50%); }
-        .body { width: 100%; position: absolute; border-radius: 1px; }
-        .sidebar { flex: 1; display: flex; flex-direction: column; padding: 20px; background-color: #1e222d; gap: 15px; overflow-y: auto; }
+        #chart-container { flex: 3; position: relative; background: #131722; }
+        .sidebar { flex: 1; display: flex; flex-direction: column; padding: 15px; background-color: #1e222d; gap: 10px; border-left: 1px solid #363a45; overflow-y: auto; }
         .asset-card { background: #2a2e39; padding: 15px; border-radius: 8px; border-left: 4px solid #2962ff; }
-        .price-display { font-size: 32px; font-weight: bold; color: #f23645; margin: 10px 0; }
-        .rank-section { background: #2a2e39; padding: 10px; border-radius: 8px; font-size: 13px; }
-        .rank-item { display: flex; justify-content: space-between; margin: 5px 0; padding-bottom: 2px; border-bottom: 1px solid #3e4352; }
+        .price-display { font-size: 32px; font-weight: bold; color: #f23645; margin-bottom: 10px; padding-left: 20px; }
         .btn-group { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        button { padding: 12px; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; transition: 0.2s; }
+        button { padding: 12px; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; }
         .buy-btn { background-color: #f23645; color: white; }
         .sell-btn { background-color: #2962ff; color: white; }
-        .sub-btn { background-color: #434651; color: white; font-size: 12px; }
-        #log-container { flex: 1; min-height: 100px; background: #131722; padding: 10px; font-size: 12px; border-radius: 4px; color: #848e9c; overflow-y: auto; display: flex; flex-direction: column-reverse; }
-        .transfer-section { display: flex; flex-direction: column; gap: 5px; background: #2a2e39; padding: 10px; border-radius: 8px; }
-        input { background: #131722; border: 1px solid #363a45; color: white; padding: 8px; border-radius: 4px; }
+        .sub-btn { background-color: #434651; color: white; width: 100%; margin-top: 5px; }
+        #log-container { flex: 1; background: #131722; padding: 10px; font-size: 12px; border-radius: 4px; overflow-y: auto; color: #848e9c; display: flex; flex-direction: column-reverse; }
+        input { background: #131722; border: 1px solid #363a45; color: white; padding: 8px; border-radius: 4px; margin-bottom: 5px; }
     </style>
 </head>
 <body>
     <header>
-        <div class="logo">UPBIT PRO</div>
-        <div>아이디: <span id="my-id" style="color:#2962ff"></span></div>
+        <div style="color:#2962ff; font-weight:bold;">UPBIT PRO</div>
+        <div>아이디: <span id="my-id" style="color:white"></span></div>
     </header>
 
     <div class="main-container">
-        <div class="chart-section">
-            <div>실시간 비트코인 시세 (BTC/KRW)</div>
+        <div id="chart-container">
             <div class="price-display" id="current-price">100</div>
-            <div id="chart"></div>
+            <div id="tv-chart" style="width:100%; height:calc(100% - 60px);"></div>
         </div>
 
         <div class="sidebar">
             <div class="asset-card">
                 <div style="font-size:12px; color:#848e9c">보유 자산</div>
-                <div style="font-size:18px; color:white; margin:5px 0;"><span id="my-cash">500</span> KRW</div>
-                <div style="font-size:18px; color:white;"><span id="my-coin">0</span> BTC</div>
+                <div style="font-size:18px;"><span id="my-cash">500</span> KRW</div>
+                <div style="font-size:18px;"><span id="my-coin">0</span> BTC</div>
             </div>
 
             <div class="btn-group">
@@ -54,19 +46,19 @@
                 <button class="sell-btn" onclick="sellCoin()">매도</button>
             </div>
 
-            <div class="transfer-section">
-                <div style="font-size:12px">코인 송금</div>
-                <input type="text" id="target-id" placeholder="상대방 ID">
-                <input type="number" id="send-amount" placeholder="송금 개수">
+            <div style="background:#2a2e39; padding:10px; border-radius:8px;">
+                <div style="font-size:12px; margin-bottom:5px;">코인 송금</div>
+                <input type="text" id="target-id" style="width:calc(100% - 18px)" placeholder="상대방 ID">
+                <input type="number" id="send-amount" style="width:calc(100% - 18px)" placeholder="송금 개수">
                 <button class="sub-btn" onclick="sendCoin()">송금하기</button>
             </div>
 
             <button class="sub-btn" onclick="reqCharge()" style="background:#e2a400">⚡ 충전 요청 (500원)</button>
             <button class="sub-btn" onclick="clearLogs()">🧹 기록 삭제</button>
-
-            <div class="rank-section">
-                <div style="font-weight:bold; margin-bottom:8px; color:#2962ff">🏆 실시간 자산 랭킹</div>
-                <div id="rank-list"></div>
+            
+            <div style="background:#2a2e39; padding:10px; border-radius:8px;">
+                <div style="font-weight:bold; color:#2962ff; font-size:13px; margin-bottom:5px;">🏆 실시간 랭킹</div>
+                <div id="rank-list" style="font-size:12px;"></div>
             </div>
 
             <div id="log-container"></div>
@@ -75,8 +67,25 @@
 
     <script>
         const socket = io();
-        let myId = prompt("사용할 닉네임을 입력하세요") || "user_" + Math.floor(Math.random()*1000);
+        
+        let myId = localStorage.getItem('savedId');
+        if (!myId) {
+            myId = prompt("사용할 닉네임을 입력하세요") || "user_" + Math.floor(Math.random()*1000);
+            localStorage.setItem('savedId', myId);
+        }
         document.getElementById('my-id').innerText = myId;
+
+        const chart = LightweightCharts.createChart(document.getElementById('tv-chart'), {
+            layout: { backgroundColor: '#131722', textColor: '#d1d4dc' },
+            grid: { vertLines: { color: '#2b2b43' }, horzLines: { color: '#2b2b43' } },
+            crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
+            priceScale: { borderColor: '#485c7b' },
+            timeScale: { borderColor: '#485c7b', timeVisible: true }
+        });
+        const candleSeries = chart.addCandlestickSeries({
+            upColor: '#f23645', downColor: '#2962ff', borderDownColor: '#2962ff',
+            borderUpColor: '#f23645', wickDownColor: '#2962ff', wickUpColor: '#f23645'
+        });
 
         socket.emit('join', myId);
 
@@ -89,36 +98,19 @@
         });
 
         socket.on('candleUpdate', (candles) => {
-            const chart = document.getElementById('chart');
-            chart.innerHTML = '';
-            const maxVal = Math.max(...candles.map(c => c.high), 1);
-            candles.forEach(c => {
-                const candle = document.createElement('div');
-                candle.className = 'candle';
-                const isUp = c.close >= c.open;
-                const color = isUp ? '#f23645' : '#2962ff';
-                const h = (Math.abs(c.close - c.open) / maxVal) * 200;
-                const b = (Math.min(c.open, c.close) / maxVal) * 200;
-                const wh = (c.high - c.low) / maxVal * 200;
-                const wb = c.low / maxVal * 200;
-                candle.innerHTML = `<div class="wick" style="height:${wh}px; bottom:${wb}px;"></div>
-                                 <div class="body" style="height:${h}px; bottom:${b}px; background-color:${color};"></div>`;
-                chart.appendChild(candle);
-            });
+            candleSeries.setData(candles);
         });
 
         socket.on('updateRanking', (list) => {
-            const container = document.getElementById('rank-list');
-            container.innerHTML = list.map((u, i) => `
-                <div class="rank-item">
-                    <span>${i+1}. ${u.id}</span>
-                    <span style="color:white">${u.total.toLocaleString()}원</span>
+            document.getElementById('rank-list').innerHTML = list.map((u, i) => `
+                <div style="display:flex; justify-content:space-between; margin:3px 0; border-bottom:1px solid #363a45;">
+                    <span>${i+1}. ${u.id}</span><span>${u.total.toLocaleString()}원</span>
                 </div>
             `).join('');
         });
 
-        socket.on('adminNotice', (msg) => { alert("📢 [공지]: " + msg); addLog("공지: " + msg); });
         socket.on('system_msg', (msg) => { addLog(msg); });
+        socket.on('adminNotice', (msg) => { alert("📢 공지: " + msg); addLog("공지: " + msg); });
         socket.on('force_reload', () => { location.reload(); });
 
         function updateUI(data) {
@@ -130,12 +122,10 @@
         function sellCoin() { socket.emit('sell', 1); }
         function reqCharge() { socket.emit('requestCharge'); addLog("충전 요청을 보냈습니다."); }
         function clearLogs() { document.getElementById('log-container').innerHTML = ''; }
-        
         function sendCoin() {
-            const toId = document.getElementById('target-id').value;
-            const amount = document.getElementById('send-amount').value;
-            if(!toId || !amount) return alert("정보를 입력하세요.");
-            socket.emit('sendCoin', { toId, amount });
+            const to = document.getElementById('target-id').value;
+            const amt = document.getElementById('send-amount').value;
+            socket.emit('sendCoin', { toId: to, amount: amt });
         }
 
         function addLog(msg) {
