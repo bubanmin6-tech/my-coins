@@ -2,18 +2,48 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>관리자 페이지</title>
+    <title>UPBIT PRO - ADMIN</title>
     <script src="/socket.io/socket.io.js"></script>
     <style>
-        body { background: #1e222d; color: white; font-family: sans-serif; padding: 20px; }
-        .req-card { background: #2a2e39; padding: 15px; margin-bottom: 10px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; }
-        button { padding: 8px 15px; background: #2962ff; color: white; border: none; border-radius: 4px; cursor: pointer; }
-        button:hover { opacity: 0.8; }
+        body { background: #131722; color: white; font-family: sans-serif; padding: 20px; }
+        .section { background: #1e222d; padding: 20px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #363a45; }
+        input, button { padding: 10px; border-radius: 4px; border: 1px solid #363a45; }
+        input { background: #2a2e39; color: white; margin-right: 5px; }
+        button { background: #2962ff; color: white; cursor: pointer; border: none; font-weight: bold; }
+        .req-item { display: flex; justify-content: space-between; background: #2a2e39; padding: 10px; margin-top: 5px; border-radius: 4px; }
+        .danger { background: #f23645; }
     </style>
 </head>
 <body>
-    <h2>⚡ 충전 요청 목록</h2>
-    <div id="request-list"></div>
+    <h1>관리자 컨트롤 패널</h1>
+
+    <div class="section">
+        <h3>1. 충전 요청 승인</h3>
+        <div id="request-list">대기 중인 요청이 없습니다.</div>
+    </div>
+
+    <div class="section">
+        <h3>2. 코인 가격 강제 설정</h3>
+        <input type="number" id="new-price" placeholder="설정할 가격">
+        <button onclick="setPrice()">가격 변경</button>
+    </div>
+
+    <div class="section">
+        <h3>3. 특정 유저 자산 지급/차감</h3>
+        <input type="text" id="target-id" placeholder="유저 ID">
+        <select id="asset-type" style="padding:10px; background:#2a2e39; color:white;">
+            <option value="cash">현금(KRW)</option>
+            <option value="coin">코인(BTC)</option>
+        </select>
+        <input type="number" id="asset-amount" placeholder="수량 (차감은 -입력)">
+        <button onclick="giveAsset()">지급/차감</button>
+    </div>
+
+    <div class="section">
+        <h3>4. 데이터 전체 초기화</h3>
+        <p style="color:#f23645; font-size:12px;">※ 모든 유저 자산이 삭제되고 차트가 100원으로 초기화됩니다.</p>
+        <button class="danger" onclick="resetAll()">전체 데이터 초기화</button>
+    </div>
 
     <script>
         const socket = io();
@@ -24,18 +54,23 @@
             container.innerHTML = list.length === 0 ? "대기 중인 요청이 없습니다." : "";
             list.forEach(req => {
                 const div = document.createElement('div');
-                div.className = 'req-card';
-                div.innerHTML = `
-                    <span><b>${req.id}</b> 님이 500원 충전을 요청했습니다.</span>
-                    <button onclick="approve('${req.id}')">승인하기</button>
-                `;
+                div.className = 'req-item';
+                div.innerHTML = `<span>${req.id} (500원 요청)</span> <button onclick="approve('${req.id}')">승인</button>`;
                 container.appendChild(div);
             });
         });
 
-        function approve(uid) {
-            socket.emit('admin_approve', uid);
+        function approve(uid) { socket.emit('admin_approve', uid); }
+        function setPrice() { socket.emit('admin_setPrice', document.getElementById('new-price').value); alert('가격 변경 완료'); }
+        function giveAsset() { 
+            socket.emit('admin_giveAsset', { 
+                id: document.getElementById('target-id').value, 
+                type: document.getElementById('asset-type').value, 
+                amount: document.getElementById('asset-amount').value 
+            }); 
+            alert('자산 조절 완료');
         }
+        function resetAll() { if(confirm('정말 초기화하시겠습니까?')) socket.emit('admin_resetAll'); }
     </script>
 </body>
 </html>
