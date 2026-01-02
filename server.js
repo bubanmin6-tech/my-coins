@@ -16,9 +16,9 @@ let lastTime = Math.floor(Date.now() / 1000);
 
 function initCandles() {
     candles = [];
-    let start = lastTime - 500;
+    let start = lastTime - 200;
     for(let i=0; i<100; i++) {
-        candles.push({ time: start + (i * 5), open: 100, high: 100, low: 100, close: 100 });
+        candles.push({ time: start + (i * 2), open: 100, high: 100, low: 100, close: 100 });
     }
     lastTime = candles[candles.length - 1].time;
 }
@@ -46,13 +46,13 @@ setInterval(() => {
 }, 1000);
 
 setInterval(() => {
-    lastTime += 5;
+    lastTime += 2;
     const candle = { time: lastTime, open: cOpen, high: cHigh, low: cLow, close: currentPrice };
     candles.push(candle);
     if (candles.length > 200) candles.shift();
     cOpen = currentPrice; cHigh = currentPrice; cLow = currentPrice;
     io.emit('candleUpdate', candles);
-}, 5000);
+}, 2000);
 
 io.on('connection', (socket) => {
     socket.on('join', (id) => {
