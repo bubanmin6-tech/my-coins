@@ -8,49 +8,50 @@
     <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
     <style>
         body { background: #131722; color: white; font-family: sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
-        #notice-bar { background: #2962ff; padding: 5px; font-size: 12px; white-space: nowrap; overflow: hidden; }
-        #notice-text { display: inline-block; animation: marquee 15s linear infinite; }
-        @keyframes marquee { from { transform: translateX(100%); } to { transform: translateX(-100%); } }
-        header { padding: 10px; background: #1e222d; display: flex; justify-content: space-between; border-bottom: 1px solid #363a45; }
-        .container { display: flex; flex: 1; overflow: hidden; }
-        .chart-section { flex: 2; display: flex; flex-direction: column; border-right: 1px solid #363a45; }
-        .side-section { flex: 1; display: flex; flex-direction: column; background: #1e222d; padding: 10px; gap: 10px; overflow-y: auto; }
+        #notice-bar { background: #2962ff; padding: 6px; font-size: 13px; overflow: hidden; white-space: nowrap; font-weight: bold; }
+        #notice-text { display: inline-block; animation: marquee 20s linear infinite; }
+        @keyframes marquee { from { transform: translateX(100vw); } to { transform: translateX(-100%); } }
+        header { padding: 12px; background: #1e222d; display: flex; justify-content: space-between; border-bottom: 1px solid #363a45; }
+        .main-container { display: flex; flex: 1; overflow: hidden; }
+        .left-content { flex: 2.5; display: flex; flex-direction: column; border-right: 1px solid #363a45; }
+        .right-sidebar { flex: 1; display: flex; flex-direction: column; background: #1e222d; padding: 15px; gap: 12px; overflow-y: auto; }
         #chart-container { flex: 1; width: 100%; position: relative; }
-        .chat-area { height: 180px; background: #131722; border-top: 1px solid #363a45; display: flex; flex-direction: column; }
-        #chat-msgs { flex: 1; overflow-y: auto; padding: 10px; font-size: 13px; color: #d1d4dc; }
-        .price { font-size: 28px; font-weight: bold; color: #f23645; padding: 10px; }
-        input, button { padding: 10px; border-radius: 4px; border: none; }
-        input { background: #2a2e39; color: white; flex: 1; }
+        .chat-section { height: 200px; background: #131722; border-top: 1px solid #363a45; display: flex; flex-direction: column; }
+        #chat-msgs { flex: 1; overflow-y: auto; padding: 10px; font-size: 13px; line-height: 1.5; }
+        .price-label { font-size: 32px; font-weight: bold; color: #f23645; padding: 10px 15px; }
+        input, button { padding: 12px; border-radius: 4px; border: none; font-size: 14px; }
+        input { background: #2a2e39; color: white; border: 1px solid #363a45; }
         button { cursor: pointer; font-weight: bold; background: #2962ff; color: white; }
         .btn-buy { background: #f23645; }
+        .asset-box { background: #2a2e39; padding: 15px; border-radius: 8px; border: 1px solid #363a45; }
     </style>
 </head>
 <body>
     <div id="notice-bar"><span id="notice-text">공지사항 로딩 중...</span></div>
-    <header><b>UPBIT PRO</b> <span id="u-id" style="font-size:12px; color:#848e9c"></span></header>
-    <div class="container">
-        <div class="chart-section">
-            <div class="price" id="curr-p">100</div>
+    <header><b style="color:#2962ff">UPBIT PRO</b> <span id="u-id" style="color:#848e9c"></span></header>
+    <div class="main-container">
+        <div class="left-content">
+            <div class="price-label" id="curr-p">100</div>
             <div id="chart-container"></div>
-            <div class="chat-area">
+            <div class="chat-section">
                 <div id="chat-msgs"></div>
-                <div style="display:flex; padding:5px; gap:5px;">
-                    <input id="chat-in" placeholder="채팅을 입력하세요..." onkeypress="if(event.keyCode==13)sendChat()">
-                    <button onclick="sendChat()">전송</button>
+                <div style="display:flex; padding:8px; gap:5px; background:#1e222d;">
+                    <input id="chat-in" placeholder="채팅 내용을 입력하세요..." style="flex:1" onkeypress="if(event.keyCode==13)sendChat()">
+                    <button onclick="sendChat()" style="width:80px;">전송</button>
                 </div>
             </div>
         </div>
-        <div class="side-section">
-            <div style="background:#2a2e39; padding:15px; border-radius:8px;">
-                <div id="cash" style="font-size:18px; margin-bottom:5px;">보유: 0 KRW</div>
+        <div class="right-sidebar">
+            <div class="asset-box">
+                <div id="cash" style="font-size:18px; margin-bottom:8px;">현금: 0 KRW</div>
                 <div id="coin" style="font-size:18px;">코인: 0 BTC</div>
             </div>
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:5px;">
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
                 <button class="btn-buy" onclick="buy()">매수</button>
-                <button onclick="sell()">매도</button>
+                <button style="background:#434651" onclick="sell()">매도</button>
             </div>
             <button style="background:#e2a400" onclick="charge()">⚡ 충전 요청 (500원)</button>
-            <div id="ranks" style="font-size:12px; line-height:1.6; color:#848e9c; margin-top:10px;"></div>
+            <div id="ranks" style="font-size:12px; color:#848e9c; background:#2a2e39; padding:12px; border-radius:8px;"></div>
         </div>
     </div>
     <script>
@@ -61,14 +62,17 @@
 
         let chart, series;
         function initChart() {
-            if (typeof LightweightCharts === 'undefined') { setTimeout(initChart, 200); return; }
+            // 차트 라이브러리 로드 확인 후 실행
+            if (typeof LightweightCharts === 'undefined') { 
+                setTimeout(initChart, 200); 
+                return; 
+            }
             chart = LightweightCharts.createChart(document.getElementById('chart-container'), {
                 layout: { backgroundColor: '#131722', textColor: '#d1d4dc' },
                 grid: { vertLines: { visible: false }, horzLines: { color: '#2b2b43' } },
-                timeScale: { timeVisible: true }
+                timeScale: { timeVisible: true, borderVisible: false }
             });
             series = chart.addCandlestickSeries({ upColor: '#f23645', downColor: '#2962ff' });
-            window.addEventListener('resize', () => chart.resize(document.getElementById('chart-container').clientWidth, document.getElementById('chart-container').clientHeight));
         }
         initChart();
 
@@ -78,25 +82,27 @@
         socket.on('updateUI_specific', res => { if(res.userId === mid) updateUI(res.data); });
         socket.on('updateNotice', m => document.getElementById('notice-text').innerText = "📢 " + m);
         socket.on('chat', d => { 
-            let div = document.createElement('div'); 
-            div.innerHTML = `<span style="color:#2962ff"><b>${d.id}</b></span>: ${d.msg}`; 
+            let div = document.createElement('div');
+            div.innerHTML = `<span style="color:#2962ff"><b>${d.id}</b></span>: ${d.msg}`;
             let box = document.getElementById('chat-msgs');
             box.appendChild(div); box.scrollTop = box.scrollHeight;
         });
         socket.on('tick', d => {
             document.getElementById('curr-p').innerText = d.price.toLocaleString();
-            document.getElementById('ranks').innerHTML = "🏆 랭킹<br>" + d.ranking.map((u,i)=>`${i+1}. ${u.id}: ${u.total}`).join('<br>');
+            if(d.ranking) document.getElementById('ranks').innerHTML = "🏆 <b>실시간 랭킹</b><br>" + d.ranking.map((u,i)=>`${i+1}. ${u.id}: ${u.total}`).join('<br>');
         });
         socket.on('candleUpdate', d => { if(series) series.setData(d); });
 
         function updateUI(d) {
-            document.getElementById('cash').innerText = "보유: " + d.cash.toLocaleString() + " KRW";
-            document.getElementById('coin').innerText = "코인: " + d.coin.toLocaleString() + " BTC";
+            document.getElementById('cash').innerText = "현금: " + (d.cash || 0).toLocaleString() + " KRW";
+            document.getElementById('coin').innerText = "코인: " + (d.coin || 0).toLocaleString() + " BTC";
         }
         function sendChat() { let i = document.getElementById('chat-in'); if(i.value){ socket.emit('chat', i.value); i.value=''; } }
         function buy() { socket.emit('buy', 1); }
         function sell() { socket.emit('sell', 1); }
-        function charge() { socket.emit('requestCharge'); alert('충전 요청을 보냈습니다. 관리자 승인을 기다려주세요.'); }
+        function charge() { socket.emit('requestCharge'); alert('관리자에게 500원 충전 요청을 보냈습니다.'); }
+
+        window.addEventListener('resize', () => { if(chart) chart.resize(document.getElementById('chart-container').clientWidth, document.getElementById('chart-container').clientHeight); });
     </script>
 </body>
 </html>
