@@ -10,6 +10,8 @@ const io = new Server(server);
 let currentPrice = 100;
 let candles = [];
 let db = {};
+let pendingRequests = [];
+let notice = "환영합니다! 매너 있는 거래 부탁드립니다.";
 let cOpen = 100, cHigh = 100, cLow = 100;
 let lastTime = Math.floor(Date.now() / 1000);
 
@@ -41,7 +43,7 @@ setInterval(() => {
         total: Math.floor((Number(u.cash) || 0) + ((Number(u.coin) || 0) * currentPrice))
     })).sort((a, b) => b.total - a.total).slice(0, 10);
 
-    io.emit('tick', { price: currentPrice, ranking: ranking });
+    io.emit('tick', { price: currentPrice, ranking: ranking, notice: notice });
 }, 1000);
 
 setInterval(() => {
@@ -56,39 +58,54 @@ setInterval(() => {
 io.on('connection', (socket) => {
     socket.on('join', (id) => {
         let uid = id || "user_" + Math.floor(Math.random()*1000);
-        if (!db[uid]) {
-            db[uid] = { id: uid, cash: 1000, coin: 0 };
-        }
+        if (!db[uid]) db[uid] = { id: uid, cash: 1000, coin: 0 };
         socket.userId = uid;
         socket.emit('init', db[uid]);
         socket.emit('candleUpdate', candles);
+        socket.emit('updateNotice', notice);
+    });
+
+    socket.on('requestCharge', () => {
+        const uid = socket.userId;
+        if (!pendingRequests.find(r => r.id === uid)) {
+            pendingRequests.push({ id: uid, amount: 500, time: new Date().toLocaleTimeString() });
+            io.emit('admin_updateRequests', pendingRequests);
+        }
+    });
+
+    socket.on('admin_approve', (uid) => {
+        if (db[uid]) {
+            db[uid].cash += 500;
+            pendingRequests = pendingRequests.filter(r => r.id !== uid);
+            io.emit('admin_updateRequests', pendingRequests);
+            io.emit('updateUI_specific', { userId: uid, data: db[uid] });
+        }
+    });
+
+    socket.on('admin_reject', (uid) => {
+        pendingRequests = pendingRequests.filter(r => r.id !== uid);
+        io.emit('admin_updateRequests', pendingRequests);
+    });
+
+    socket.on('admin_sendNotice', (msg) => {
+        notice = msg;
+        io.emit('updateNotice', notice);
     });
 
     socket.on('buy', (q) => {
         let u = db[socket.userId];
-        let numQ = Number(q);
-        let cost = currentPrice * numQ;
+        let cost = currentPrice * Number(q);
         if (u && u.cash >= cost) {
-            u.cash -= cost;
-            u.coin += numQ;
+            u.cash -= cost; u.coin += Number(q);
             socket.emit('updateUI', u);
         }
     });
 
     socket.on('sell', (q) => {
         let u = db[socket.userId];
-        let numQ = Number(q);
-        if (u && u.coin >= numQ) {
-            u.cash += currentPrice * numQ;
-            u.coin -= numQ;
+        if (u && u.coin >= Number(q)) {
+            u.cash += currentPrice * Number(q); u.coin -= Number(q);
             socket.emit('updateUI', u);
-        }
-    });
-
-    socket.on('requestCharge', () => {
-        if(db[socket.userId]) {
-            db[socket.userId].cash += 500;
-            socket.emit('updateUI', db[socket.userId]);
         }
     });
 
@@ -101,24 +118,13 @@ io.on('connection', (socket) => {
         }
     });
 
-    socket.on('admin_setPrice', (p) => {
-        currentPrice = Number(p);
-        io.emit('tick', { price: currentPrice });
-    });
-
+    socket.on('admin_getRequests', () => socket.emit('admin_updateRequests', pendingRequests));
+    socket.on('admin_setPrice', (p) => { currentPrice = Number(p); io.emit('tick', { price: currentPrice }); });
     socket.on('admin_giveAsset', (d) => {
-        let target = db[d.id];
-        if (target) {
-            if (d.type === 'cash') target.cash += Number(d.amount);
-            else target.coin += Number(d.amount);
-            io.emit('updateUI_specific', { userId: d.id, data: target });
-        }
+        let t = db[d.id];
+        if(t){ if(d.type==='cash') t.cash+=Number(d.amount); else t.coin+=Number(d.amount); io.emit('updateUI_specific', {userId:d.id, data:t}); }
     });
-
-    socket.on('admin_resetAll', () => {
-        db = {};
-        io.emit('forceReload');
-    });
+    socket.on('admin_resetAll', () => { db = {}; io.emit('forceReload'); });
 });
 
 const PORT = process.env.PORT || 3000;
