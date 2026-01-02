@@ -13,7 +13,7 @@
         .left-content { flex: 2.5; display: flex; flex-direction: column; border-right: 1px solid #363a45; }
         .right-sidebar { flex: 1; display: flex; flex-direction: column; background: #1e222d; padding: 15px; gap: 10px; overflow-y: auto; }
         #chart-container { flex: 1; width: 100%; }
-        .chat-area { height: 180px; background: #131722; border-top: 1px solid #363a45; display: flex; flex-direction: column; }
+        .chat-area { height: 160px; background: #131722; border-top: 1px solid #363a45; display: flex; flex-direction: column; }
         #chat-log { flex: 1; overflow-y: auto; padding: 10px; font-size: 13px; }
         .price-tag { font-size: 30px; font-weight: bold; color: #f23645; padding: 10px; }
         input, button { padding: 10px; border-radius: 4px; border: none; }
@@ -89,7 +89,7 @@
         function sendChat() { let i = document.getElementById('chat-in'); if(i.value){ socket.emit('chat', i.value); i.value=''; } }
         function buy() { socket.emit('buy', 1); }
         function sell() { socket.emit('sell', 1); }
-        function charge() { socket.emit('requestCharge'); alert('충전 요청 완료!'); }
+        function charge() { socket.emit('requestCharge'); alert('충전 요청 보냄'); }
         window.addEventListener('resize', () => { if(chart) chart.resize(document.getElementById('chart-container').clientWidth, document.getElementById('chart-container').clientHeight); });
     </script>
 </body>
