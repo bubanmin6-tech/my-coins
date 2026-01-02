@@ -38,7 +38,7 @@ setInterval(() => {
 
     let ranking = Object.values(db).map(u => ({
         id: u.id,
-        total: Math.floor(u.cash + (u.coin * currentPrice))
+        total: Math.floor((Number(u.cash) || 0) + ((Number(u.coin) || 0) * currentPrice))
     })).sort((a, b) => b.total - a.total).slice(0, 10);
 
     io.emit('tick', { price: currentPrice, ranking: ranking });
@@ -56,22 +56,42 @@ setInterval(() => {
 io.on('connection', (socket) => {
     socket.on('join', (id) => {
         let uid = id || "user_" + Math.floor(Math.random()*1000);
-        if (!db[uid]) db[uid] = { id: uid, cash: 1000, coin: 0 };
+        if (!db[uid]) {
+            db[uid] = { id: uid, cash: 1000, coin: 0 };
+        }
         socket.userId = uid;
         socket.emit('init', db[uid]);
         socket.emit('candleUpdate', candles);
     });
+
     socket.on('buy', (q) => {
-        let u = db[socket.userId]; let cost = currentPrice * Number(q);
-        if (u && u.cash >= cost) { u.cash -= cost; u.coin += Number(q); socket.emit('updateUI', u); }
+        let u = db[socket.userId];
+        let numQ = Number(q);
+        let cost = currentPrice * numQ;
+        if (u && u.cash >= cost) {
+            u.cash -= cost;
+            u.coin += numQ;
+            socket.emit('updateUI', u);
+        }
     });
+
     socket.on('sell', (q) => {
         let u = db[socket.userId];
-        if (u && u.coin >= Number(q)) { u.cash += currentPrice * Number(q); u.coin -= Number(q); socket.emit('updateUI', u); }
+        let numQ = Number(q);
+        if (u && u.coin >= numQ) {
+            u.cash += currentPrice * numQ;
+            u.coin -= numQ;
+            socket.emit('updateUI', u);
+        }
     });
+
     socket.on('requestCharge', () => {
-        if(db[socket.userId]) { db[socket.userId].cash += 500; socket.emit('updateUI', db[socket.userId]); }
+        if(db[socket.userId]) {
+            db[socket.userId].cash += 500;
+            socket.emit('updateUI', db[socket.userId]);
+        }
     });
+
     socket.on('sendCoin', (d) => {
         let me = db[socket.userId], f = db[d.to], a = Number(d.amount);
         if (me && f && me.coin >= a && a > 0) {
@@ -80,10 +100,12 @@ io.on('connection', (socket) => {
             io.emit('updateUI_specific', { userId: d.to, data: f });
         }
     });
+
     socket.on('admin_setPrice', (p) => {
         currentPrice = Number(p);
         io.emit('tick', { price: currentPrice });
     });
+
     socket.on('admin_giveAsset', (d) => {
         let target = db[d.id];
         if (target) {
@@ -92,6 +114,7 @@ io.on('connection', (socket) => {
             io.emit('updateUI_specific', { userId: d.id, data: target });
         }
     });
+
     socket.on('admin_resetAll', () => {
         db = {};
         io.emit('forceReload');
