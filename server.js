@@ -32,6 +32,7 @@ setInterval(() => {
     const drift = Math.floor(Math.random() * 6) + 1;
     if (r < 50) currentPrice += drift;
     else currentPrice -= drift;
+    
     if (currentPrice < 1) currentPrice = 1;
     if (currentPrice > cHigh) cHigh = currentPrice;
     if (currentPrice < cLow) cLow = currentPrice;
@@ -61,20 +62,36 @@ io.on('connection', (socket) => {
         socket.emit('init', db[uid]);
         socket.emit('candleUpdate', candles);
     });
+
     socket.on('buy', (q) => {
         let u = db[socket.userId]; let cost = currentPrice * Number(q);
-        if (u && u.cash >= cost) { u.cash -= cost; u.coin += Number(q); socket.emit('updateUI', u); }
+        if (u && u.cash >= cost) { 
+            u.cash -= cost; u.coin += Number(q); 
+            socket.emit('updateUI', u); 
+        }
     });
+
     socket.on('sell', (q) => {
         let u = db[socket.userId];
-        if (u && u.coin >= Number(q)) { u.cash += currentPrice * Number(q); u.coin -= Number(q); socket.emit('updateUI', u); }
+        if (u && u.coin >= Number(q)) { 
+            u.cash += currentPrice * Number(q); u.coin -= Number(q); 
+            socket.emit('updateUI', u); 
+        }
     });
+
     socket.on('requestCharge', () => {
-        if(db[socket.userId]) { db[socket.userId].cash += 500; socket.emit('updateUI', db[socket.userId]); }
+        if(db[socket.userId]) {
+            db[socket.userId].cash += 500;
+            socket.emit('updateUI', db[socket.userId]);
+        }
     });
+
     socket.on('sendCoin', (d) => {
         let me = db[socket.userId], f = db[d.to], a = Number(d.amount);
-        if (me && f && me.coin >= a && a > 0) { me.coin -= a; f.coin += a; socket.emit('updateUI', me); }
+        if (me && f && me.coin >= a && a > 0) { 
+            me.coin -= a; f.coin += a; 
+            socket.emit('updateUI', me); 
+        }
     });
 });
 
