@@ -10,7 +10,7 @@
         body { background-color: #131722; color: #d1d4dc; font-family: sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         header { background-color: #1e222d; padding: 10px 15px; display: flex; justify-content: space-between; border-bottom: 1px solid #363a45; font-size: 14px; }
         .main-container { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
-        #chart-container { flex: 2; position: relative; min-height: 250px; }
+        #chart-container { flex: 2; position: relative; background: #131722; }
         .sidebar { flex: 1.5; display: flex; flex-direction: column; padding: 10px; background-color: #1e222d; gap: 8px; overflow-y: auto; border-top: 1px solid #363a45; }
         .price-display { font-size: 32px; font-weight: bold; color: #f23645; padding: 10px 15px; }
         .asset-card { background: #2a2e39; padding: 12px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; }
@@ -81,6 +81,10 @@
             borderUpColor: '#f23645', wickDownColor: '#2962ff', wickUpColor: '#f23645'
         });
 
+        window.addEventListener('resize', () => {
+            chart.applyOptions({ width: document.getElementById('tv-chart').clientWidth, height: document.getElementById('tv-chart').clientHeight });
+        });
+
         socket.emit('join', myId);
         socket.on('init', (data) => updateUI(data));
         socket.on('updateUI', (data) => updateUI(data));
@@ -88,7 +92,10 @@
             document.getElementById('current-price').innerText = data.price.toLocaleString();
             updateRanking(data.ranking);
         });
-        socket.on('candleUpdate', (data) => { candleSeries.setData(data); });
+        socket.on('candleUpdate', (data) => { 
+            candleSeries.setData(data);
+            chart.timeScale().fitContent();
+        });
 
         function updateUI(data) {
             document.getElementById('my-cash').innerText = data.cash.toLocaleString();
