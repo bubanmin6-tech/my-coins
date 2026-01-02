@@ -5,13 +5,13 @@ const path = require('path');
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, { cors: { origin: "*" } });
+const io = new Server(server);
 
 let currentPrice = 100;
 let candles = [];
 let db = {};
 let pendingRequests = [];
-let notice = "환영합니다! 채팅과 보이스를 사용해보세요.";
+let notice = "환영합니다! 실시간 거래소에 오신 것을 환영합니다.";
 let cOpen = 100, cHigh = 100, cLow = 100;
 let lastTime = Math.floor(Date.now() / 1000);
 
@@ -21,7 +21,6 @@ function initCandles() {
     for(let i=0; i<100; i++) {
         candles.push({ time: start + (i * 5), open: 100, high: 100, low: 100, close: 100 });
     }
-    lastTime = candles[candles.length - 1].time;
 }
 initCandles();
 
@@ -30,16 +29,15 @@ app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
 app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'admin.html')));
 
 setInterval(() => {
-    const r = Math.random() * 100;
     const drift = Math.floor(Math.random() * 3) + 1;
-    if (r < 50) currentPrice += drift; else currentPrice -= drift;
+    if (Math.random() < 0.5) currentPrice += drift; else currentPrice -= drift;
     if (currentPrice < 1) currentPrice = 1;
     if (currentPrice > cHigh) cHigh = currentPrice;
     if (currentPrice < cLow) cLow = currentPrice;
 
     let ranking = Object.values(db).map(u => ({
         id: u.id,
-        total: Math.floor((Number(u.cash) || 0) + ((Number(u.coin) || 0) * currentPrice))
+        total: Math.floor((u.cash || 0) + ((u.coin || 0) * currentPrice))
     })).sort((a, b) => b.total - a.total).slice(0, 5);
 
     io.emit('tick', { price: currentPrice, ranking: ranking });
@@ -65,10 +63,10 @@ io.on('connection', (socket) => {
     });
 
     socket.on('chat', (msg) => { io.emit('chat', { id: socket.userId, msg: msg }); });
-    socket.on('voice', (data) => { socket.broadcast.emit('voice', data); });
+
     socket.on('requestCharge', () => {
         if (!pendingRequests.find(r => r.id === socket.userId)) {
-            pendingRequests.push({ id: socket.userId, amount: 500, time: new Date().toLocaleTimeString() });
+            pendingRequests.push({ id: socket.userId, amount: 500 });
             io.emit('admin_updateRequests', pendingRequests);
         }
     });
@@ -83,13 +81,16 @@ io.on('connection', (socket) => {
     });
 
     socket.on('admin_sendNotice', (msg) => { notice = msg; io.emit('updateNotice', notice); });
+
     socket.on('buy', (q) => {
         let u = db[socket.userId]; let cost = currentPrice * Number(q);
         if (u && u.cash >= cost) { u.cash -= cost; u.coin += Number(q); socket.emit('updateUI', u); }
     });
+
     socket.on('sell', (q) => {
         let u = db[socket.userId]; if (u && u.coin >= Number(q)) { u.cash += currentPrice * Number(q); u.coin -= Number(q); socket.emit('updateUI', u); }
     });
+
     socket.on('admin_getRequests', () => socket.emit('admin_updateRequests', pendingRequests));
 });
 
