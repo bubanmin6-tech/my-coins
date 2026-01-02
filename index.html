@@ -8,9 +8,6 @@
     <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
     <style>
         body { background: #131722; color: white; font-family: sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
-        #notice-bar { background: #2962ff; padding: 6px; font-size: 13px; overflow: hidden; white-space: nowrap; }
-        #notice-text { display: inline-block; animation: marquee 15s linear infinite; }
-        @keyframes marquee { from { transform: translateX(100%); } to { transform: translateX(-100%); } }
         header { padding: 12px; background: #1e222d; display: flex; justify-content: space-between; border-bottom: 1px solid #363a45; }
         .main-container { display: flex; flex: 1; overflow: hidden; }
         .left-content { flex: 2.5; display: flex; flex-direction: column; border-right: 1px solid #363a45; }
@@ -25,7 +22,6 @@
     </style>
 </head>
 <body>
-    <div id="notice-bar"><span id="notice-text"></span></div>
     <header><b>UPBIT PRO</b> <span id="u-id" style="color:#848e9c"></span></header>
     <div class="main-container">
         <div class="left-content">
@@ -34,7 +30,7 @@
             <div class="chat-area">
                 <div id="chat-log"></div>
                 <div style="display:flex; padding:5px; gap:5px;">
-                    <input id="chat-in" placeholder="메시지 입력..." style="flex:1" onkeypress="if(event.keyCode==13)sendChat()">
+                    <input id="chat-in" placeholder="메세지 입력..." style="flex:1" onkeypress="if(event.keyCode==13)sendChat()">
                     <button onclick="sendChat()">전송</button>
                 </div>
             </div>
@@ -74,7 +70,6 @@
         socket.on('init', d => updateUI(d));
         socket.on('updateUI', d => updateUI(d));
         socket.on('updateUI_specific', res => { if(res.userId === mid) updateUI(res.data); });
-        socket.on('updateNotice', m => document.getElementById('notice-text').innerText = "📢 " + m);
         socket.on('chat', d => {
             let div = document.createElement('div');
             div.innerHTML = `<b>${d.id}</b>: ${d.msg}`;
@@ -94,7 +89,7 @@
         function sendChat() { let i = document.getElementById('chat-in'); if(i.value){ socket.emit('chat', i.value); i.value=''; } }
         function buy() { socket.emit('buy', 1); }
         function sell() { socket.emit('sell', 1); }
-        function charge() { socket.emit('requestCharge'); alert('충전 요청을 보냈습니다.'); }
+        function charge() { socket.emit('requestCharge'); alert('충전 요청 완료!'); }
         window.addEventListener('resize', () => { if(chart) chart.resize(document.getElementById('chart-container').clientWidth, document.getElementById('chart-container').clientHeight); });
     </script>
 </body>
