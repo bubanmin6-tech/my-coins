@@ -7,10 +7,11 @@
     <style>
         body { background: #131722; color: white; font-family: sans-serif; padding: 20px; }
         .section { background: #1e222d; padding: 20px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #363a45; }
-        input, button { padding: 10px; border-radius: 4px; border: 1px solid #363a45; }
-        input { background: #2a2e39; color: white; margin-right: 5px; }
+        input, button, select { padding: 10px; border-radius: 4px; border: 1px solid #363a45; }
+        input, select { background: #2a2e39; color: white; margin-right: 5px; }
         button { background: #2962ff; color: white; cursor: pointer; border: none; font-weight: bold; }
-        .req-item { display: flex; justify-content: space-between; background: #2a2e39; padding: 10px; margin-top: 5px; border-radius: 4px; }
+        button:hover { opacity: 0.8; }
+        .req-item { display: flex; justify-content: space-between; background: #2a2e39; padding: 12px; margin-top: 8px; border-radius: 4px; align-items: center; }
         .danger { background: #f23645; }
     </style>
 </head>
@@ -29,48 +30,76 @@
     </div>
 
     <div class="section">
-        <h3>3. 특정 유저 자산 지급/차감</h3>
+        <h3>3. 특정 유저 자산 지급/삭제</h3>
         <input type="text" id="target-id" placeholder="유저 ID">
-        <select id="asset-type" style="padding:10px; background:#2a2e39; color:white;">
+        <select id="asset-type">
             <option value="cash">현금(KRW)</option>
             <option value="coin">코인(BTC)</option>
         </select>
-        <input type="number" id="asset-amount" placeholder="수량 (차감은 -입력)">
-        <button onclick="giveAsset()">지급/차감</button>
+        <input type="number" id="asset-amount" placeholder="수량 (차감은 -)">
+        <button onclick="giveAsset()">자산 조정 적용</button>
     </div>
 
     <div class="section">
         <h3>4. 데이터 전체 초기화</h3>
-        <p style="color:#f23645; font-size:12px;">※ 모든 유저 자산이 삭제되고 차트가 100원으로 초기화됩니다.</p>
+        <p style="color:#f23645; font-size:12px;">※ 모든 데이터가 100원으로 초기화되며 복구 불가능합니다.</p>
         <button class="danger" onclick="resetAll()">전체 데이터 초기화</button>
     </div>
 
     <script>
         const socket = io();
+
         socket.emit('admin_getRequests');
 
         socket.on('admin_updateRequests', (list) => {
             const container = document.getElementById('request-list');
-            container.innerHTML = list.length === 0 ? "대기 중인 요청이 없습니다." : "";
+            if (!list || list.length === 0) {
+                container.innerHTML = "대기 중인 요청이 없습니다.";
+                return;
+            }
+            container.innerHTML = "";
             list.forEach(req => {
                 const div = document.createElement('div');
                 div.className = 'req-item';
-                div.innerHTML = `<span>${req.id} (500원 요청)</span> <button onclick="approve('${req.id}')">승인</button>`;
+                div.innerHTML = `
+                    <span><b>${req.id}</b> 님이 500원 충전을 요청함</span>
+                    <button onclick="approve('${req.id}')">승인하기</button>
+                `;
                 container.appendChild(div);
             });
         });
 
-        function approve(uid) { socket.emit('admin_approve', uid); }
-        function setPrice() { socket.emit('admin_setPrice', document.getElementById('new-price').value); alert('가격 변경 완료'); }
-        function giveAsset() { 
-            socket.emit('admin_giveAsset', { 
-                id: document.getElementById('target-id').value, 
-                type: document.getElementById('asset-type').value, 
-                amount: document.getElementById('asset-amount').value 
-            }); 
-            alert('자산 조절 완료');
+        function approve(uid) {
+            socket.emit('admin_approve', uid);
         }
-        function resetAll() { if(confirm('정말 초기화하시겠습니까?')) socket.emit('admin_resetAll'); }
+
+        function setPrice() {
+            const p = document.getElementById('new-price').value;
+            if(!p) return alert('가격을 입력하세요');
+            socket.emit('admin_setPrice', p);
+            alert('코인 가격이 ' + p + '원으로 변경되었습니다.');
+        }
+
+        function giveAsset() {
+            const id = document.getElementById('target-id').value;
+            const type = document.getElementById('asset-type').value;
+            const amt = document.getElementById('asset-amount').value;
+            if(!id || !amt) return alert('ID와 수량을 입력하세요');
+            
+            socket.emit('admin_giveAsset', { id: id, type: type, amount: amt });
+            alert(id + ' 님의 자산이 조정되었습니다.');
+        }
+
+        function resetAll() {
+            if(confirm('정말 모든 데이터를 초기화하시겠습니까?')) {
+                socket.emit('admin_resetAll');
+            }
+        }
+
+        socket.on('forceReload', () => {
+            alert('데이터가 초기화되어 페이지를 새로고침합니다.');
+            location.reload();
+        });
     </script>
 </body>
 </html>
