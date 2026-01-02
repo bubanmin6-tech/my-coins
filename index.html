@@ -2,94 +2,85 @@
 <html>
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>UPBIT PRO</title>
     <script src="/socket.io/socket.io.js"></script>
-    <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
+    <script src="https://unpkg.com/lightweight-charts@3.8.0/dist/lightweight-charts.standalone.production.js"></script>
     <style>
-        body { background: #131722; color: white; font-family: sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
-        header { padding: 12px; background: #1e222d; display: flex; justify-content: space-between; border-bottom: 1px solid #363a45; }
-        .main-container { display: flex; flex: 1; overflow: hidden; }
-        .left-content { flex: 2.5; display: flex; flex-direction: column; border-right: 1px solid #363a45; }
-        .right-sidebar { flex: 1; display: flex; flex-direction: column; background: #1e222d; padding: 15px; gap: 10px; overflow-y: auto; }
-        #chart-container { flex: 1; width: 100%; }
-        .chat-area { height: 180px; background: #131722; border-top: 1px solid #363a45; display: flex; flex-direction: column; }
-        #chat-log { flex: 1; overflow-y: auto; padding: 10px; font-size: 13px; }
-        .price-tag { font-size: 30px; font-weight: bold; color: #f23645; padding: 10px; }
-        input, button { padding: 10px; border-radius: 4px; border: none; }
-        input { background: #2a2e39; color: white; border: 1px solid #363a45; }
-        button { cursor: pointer; font-weight: bold; background: #2962ff; color: white; }
+        body { background: #131722; color: #d1d4dc; font-family: sans-serif; margin: 0; padding: 0; overflow: hidden; height: 100vh; display: flex; flex-direction: column; }
+        header { background: #1e222d; padding: 10px; display: flex; justify-content: space-between; border-bottom: 1px solid #363a45; font-size: 14px; }
+        .main { display: flex; flex: 1; flex-direction: column; overflow: hidden; }
+        #chart-box { flex: 3; background: #131722; position: relative; min-height: 250px; }
+        .ui-box { flex: 2; background: #1e222d; padding: 10px; display: flex; flex-direction: column; gap: 8px; overflow-y: auto; border-top: 1px solid #363a45; }
+        .price { font-size: 32px; font-weight: bold; color: #f23645; padding: 5px 10px; }
+        .card { background: #2a2e39; padding: 12px; border-radius: 8px; display: flex; justify-content: space-between; }
+        .btns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        button { padding: 12px; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; color: white; }
+        .b-btn { background: #f23645; } .s-btn { background: #2962ff; }
+        .etc-btn { background: #434651; padding: 10px; font-size: 12px; }
+        input { background: #131722; border: 1px solid #363a45; color: white; padding: 8px; border-radius: 4px; font-size: 14px; }
+        @media (min-width: 768px) { .main { flex-direction: row; } .ui-box { flex: 1; border-top: none; border-left: 1px solid #363a45; } }
     </style>
 </head>
 <body>
-    <header><b>UPBIT PRO</b> <span id="u-id" style="color:#848e9c"></span></header>
-    <div class="main-container">
-        <div class="left-content">
-            <div class="price-tag" id="curr-p">100</div>
-            <div id="chart-container"></div>
-            <div class="chat-area">
-                <div id="chat-log"></div>
-                <div style="display:flex; padding:5px; gap:5px;">
-                    <input id="chat-in" placeholder="채팅 입력..." style="flex:1" onkeypress="if(event.keyCode==13)sendChat()">
-                    <button onclick="sendChat()">전송</button>
-                </div>
-            </div>
+    <header><div style="color:#2962ff; font-weight:bold;">UPBIT PRO</div><div id="u-id"></div></header>
+    <div class="main">
+        <div id="chart-box">
+            <div class="price" id="curr-p">100</div>
+            <div id="chart-container" style="width:100%; height:calc(100% - 60px);"></div>
         </div>
-        <div class="right-sidebar">
-            <div style="background:#2a2e39; padding:12px; border-radius:8px;">
-                <div id="cash">현금: 0 KRW</div>
-                <div id="coin">코인: 0 BTC</div>
+        <div class="ui-box">
+            <div class="card">
+                <div><div style="font-size:11px; color:#848e9c">보유 자산</div><div id="cash" style="font-size:16px;">0 KRW</div></div>
+                <div style="text-align:right;"><div style="font-size:11px; color:#848e9c">보유 코인</div><div id="coin" style="font-size:16px;">0 BTC</div></div>
             </div>
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:5px;">
-                <button style="background:#f23645" onclick="buy()">매수</button>
-                <button style="background:#434651" onclick="sell()">매도</button>
-            </div>
-            <button style="background:#e2a400" onclick="charge()">⚡ 충전 요청</button>
-            <div id="ranks" style="font-size:12px; color:#848e9c; margin-top:10px;"></div>
+            <div class="btns"><button class="b-btn" onclick="buy()">매수</button><button class="s-btn" onclick="sell()">매도</button></div>
+            <input type="text" id="t-id" placeholder="상대방 ID"><input type="number" id="s-amt" placeholder="송금 개수">
+            <button class="etc-btn" onclick="send()">코인 송금하기</button>
+            <button class="etc-btn" onclick="charge()" style="background:#e2a400">⚡ 충전 요청 (500원)</button>
+            <div id="ranks" style="font-size:12px; background:#2a2e39; padding:12px; border-radius:8px; line-height:1.6;"></div>
         </div>
     </div>
     <script>
         const socket = io();
         let mid = localStorage.getItem('minId') || "user_" + Math.floor(Math.random()*1000);
         localStorage.setItem('minId', mid);
-        document.getElementById('u-id').innerText = mid;
+        document.getElementById('u-id').innerText = "아이디: " + mid;
 
         let chart, series;
-        function loadChart() {
-            if (typeof LightweightCharts === 'undefined') { setTimeout(loadChart, 300); return; }
-            chart = LightweightCharts.createChart(document.getElementById('chart-container'), {
+        function initChart() {
+            if (typeof LightweightCharts === 'undefined') { setTimeout(initChart, 100); return; }
+            const container = document.getElementById('chart-container');
+            chart = LightweightCharts.createChart(container, {
                 layout: { backgroundColor: '#131722', textColor: '#d1d4dc' },
                 grid: { vertLines: { visible: false }, horzLines: { color: '#2b2b43' } },
-                timeScale: { timeVisible: true }
+                timeScale: { timeVisible: true, borderVisible: false }
             });
-            series = chart.addCandlestickSeries({ upColor: '#f23645', downColor: '#2962ff' });
+            series = chart.addCandlestickSeries({ upColor: '#f23645', downColor: '#2962ff', borderVisible: false, wickUpColor: '#f23645', wickDownColor: '#2962ff' });
         }
-        loadChart();
+        initChart();
 
         socket.emit('join', mid);
         socket.on('init', d => updateUI(d));
         socket.on('updateUI', d => updateUI(d));
         socket.on('updateUI_specific', res => { if(res.userId === mid) updateUI(res.data); });
-        socket.on('chat', d => {
-            let div = document.createElement('div');
-            div.innerHTML = `<b>${d.id}</b>: ${d.msg}`;
-            let log = document.getElementById('chat-log');
-            log.appendChild(div); log.scrollTop = log.scrollHeight;
-        });
+        socket.on('forceReload', () => location.reload());
         socket.on('tick', d => {
-            document.getElementById('curr-p').innerText = d.price.toLocaleString();
-            if(d.ranking) document.getElementById('ranks').innerHTML = "🏆 실시간 순위<br>" + d.ranking.map((u,i)=>`${i+1}. ${u.id}: ${u.total}`).join('<br>');
+            if(d.price) document.getElementById('curr-p').innerText = d.price.toLocaleString();
+            if(d.ranking) document.getElementById('ranks').innerHTML = "<b style='color:#2962ff'>🏆 실시간 랭킹순위</b><br>" + d.ranking.map((u,i)=>`${i+1}. ${u.id}: ${u.total.toLocaleString()}원`).join('<br>');
         });
-        socket.on('candleUpdate', d => { if(series) series.setData(d); });
+        socket.on('candleUpdate', d => { if(series) { series.setData(d); } });
 
         function updateUI(d) {
-            document.getElementById('cash').innerText = "현금: " + d.cash.toLocaleString() + " KRW";
-            document.getElementById('coin').innerText = "코인: " + d.coin.toLocaleString() + " BTC";
+            if(!d) return;
+            document.getElementById('cash').innerText = (Number(d.cash) || 0).toLocaleString() + " KRW";
+            document.getElementById('coin').innerText = (Number(d.coin) || 0).toLocaleString() + " BTC";
         }
-        function sendChat() { let i = document.getElementById('chat-in'); if(i.value){ socket.emit('chat', i.value); i.value=''; } }
         function buy() { socket.emit('buy', 1); }
         function sell() { socket.emit('sell', 1); }
-        function charge() { socket.emit('requestCharge'); alert('충전 요청 보냄'); }
-        window.addEventListener('resize', () => { if(chart) chart.resize(document.getElementById('chart-container').clientWidth, document.getElementById('chart-container').clientHeight); });
+        function charge() { socket.emit('requestCharge'); alert('충전 요청을 보냈습니다. 관리자 승인을 기다려주세요.'); }
+        function send() { socket.emit('sendCoin', { to: document.getElementById('t-id').value, amount: document.getElementById('s-amt').value }); }
+        window.onresize = () => { if(chart) chart.resize(document.getElementById('chart-container').clientWidth, document.getElementById('chart-container').clientHeight); };
     </script>
 </body>
 </html>
