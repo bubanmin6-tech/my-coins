@@ -16,8 +16,8 @@ let lastTime = Math.floor(Date.now() / 1000);
 
 function initCandles() {
     candles = [];
-    let start = lastTime - 100;
-    for(let i=0; i<20; i++) {
+    let start = lastTime - 250;
+    for(let i=0; i<50; i++) {
         candles.push({ time: start + (i * 5), open: 100, high: 100, low: 100, close: 100 });
     }
 }
@@ -31,22 +31,23 @@ setInterval(() => {
     const drift = Math.floor(Math.random() * 3) + 1;
     if (Math.random() < 0.5) currentPrice += drift; else currentPrice -= drift;
     if (currentPrice < 1) currentPrice = 1;
+    
     if (currentPrice > cHigh) cHigh = currentPrice;
     if (currentPrice < cLow) cLow = currentPrice;
 
     let ranking = Object.values(db).map(u => ({
         id: u.id,
-        total: Math.floor((Number(u.cash) || 0) + ((Number(u.coin) || 0) * currentPrice))
+        total: Math.floor((u.cash || 0) + ((u.coin || 0) * currentPrice))
     })).sort((a, b) => b.total - a.total).slice(0, 5);
 
     io.emit('tick', { price: currentPrice, ranking: ranking });
-}, 1000);
+}, 2000);
 
 setInterval(() => {
     lastTime += 5;
     const candle = { time: lastTime, open: cOpen, high: cHigh, low: cLow, close: currentPrice };
     candles.push(candle);
-    if (candles.length > 20) candles.shift();
+    if (candles.length > 50) candles.shift();
     cOpen = currentPrice; cHigh = currentPrice; cLow = currentPrice;
     io.emit('candleUpdate', candles);
 }, 5000);
@@ -83,14 +84,12 @@ io.on('connection', (socket) => {
     });
 
     socket.on('buy', (q) => {
-        let u = db[socket.userId];
-        let cost = currentPrice * Number(q);
+        let u = db[socket.userId]; let cost = currentPrice * Number(q);
         if (u && u.cash >= cost) { u.cash -= cost; u.coin += Number(q); socket.emit('updateUI', u); }
     });
 
     socket.on('sell', (q) => {
-        let u = db[socket.userId];
-        if (u && u.coin >= Number(q)) { u.cash += currentPrice * Number(q); u.coin -= Number(q); socket.emit('updateUI', u); }
+        let u = db[socket.userId]; if (u && u.coin >= Number(q)) { u.cash += currentPrice * Number(q); u.coin -= Number(q); socket.emit('updateUI', u); }
     });
 
     socket.on('admin_getRequests', () => socket.emit('admin_updateRequests', pendingRequests));
