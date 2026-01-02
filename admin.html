@@ -2,40 +2,60 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>ADMIN PANEL</title>
+    <title>UPBIT PRO ADMIN</title>
     <script src="/socket.io/socket.io.js"></script>
     <style>
-        body { background: #1e222d; color: white; font-family: sans-serif; padding: 20px; }
-        section { background: #2a2e39; padding: 15px; border-radius: 8px; margin-bottom: 10px; border: 1px solid #363a45; }
-        input { padding: 10px; border-radius: 4px; border: 1px solid #363a45; background: #131722; color: white; width: 150px; }
-        button { padding: 10px 20px; background: #2962ff; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        body { background: #131722; color: white; font-family: sans-serif; padding: 20px; }
+        section { background: #1e222d; padding: 15px; margin-bottom: 20px; border-radius: 8px; border: 1px solid #363a45; }
+        .req-card { background: #2a2e39; padding: 10px; margin-bottom: 5px; border-radius: 4px; display: flex; justify-content: space-between; align-items: center; }
+        input { padding: 10px; background: #131722; border: 1px solid #363a45; color: white; width: 300px; }
+        button { padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; background: #2962ff; color: white; }
+        .ok { background: #089981; } .no { background: #f23645; }
     </style>
 </head>
 <body>
-    <h1>UPBIT PRO ADMIN</h1>
+    <h1>🛠 관리자 패널</h1>
+
     <section>
-        <h3>💰 가격 강제 조절</h3>
-        <input type="number" id="p-val" placeholder="설정할 가격">
-        <button onclick="setPrice()">가격 즉시 적용</button>
+        <h3>📢 공지사항 전송</h3>
+        <input type="text" id="notice-in" placeholder="공지할 내용을 입력하세요">
+        <button onclick="sendNotice()">공지하기</button>
     </section>
+
     <section>
-        <h3>🎁 자산 지급 (ID 필수)</h3>
-        <input type="text" id="u-id" placeholder="유저 ID">
-        <input type="number" id="a-val" placeholder="수량">
-        <button onclick="give('cash')">현금 지급</button>
-        <button onclick="give('coin')" style="background:#f23645">코인 지급</button>
+        <h3>💰 충전 요청 승인</h3>
+        <div id="request-list"></div>
     </section>
+
     <section>
-        <h3>⚠️ 위험 지역</h3>
-        <button onclick="resetAll()" style="background:#434651">전체 유저 데이터 초기화</button>
+        <h3>🎮 가격 및 자산 관리</h3>
+        <input type="number" id="p-val" placeholder="가격"> <button onclick="setPrice()">가격 설정</button><br><br>
+        <input type="text" id="u-id" placeholder="유저 ID"> 
+        <input type="number" id="a-val" placeholder="수량"> 
+        <button onclick="give('cash')">현금 지급</button> <button onclick="give('coin')" class="no">코인 지급</button>
     </section>
+
     <script>
         const socket = io();
+        socket.emit('admin_getRequests');
+
+        function sendNotice() { socket.emit('admin_sendNotice', document.getElementById('notice-in').value); }
         function setPrice() { socket.emit('admin_setPrice', document.getElementById('p-val').value); }
-        function give(type) {
-            socket.emit('admin_giveAsset', { id: document.getElementById('u-id').value, amount: document.getElementById('a-val').value, type: type });
-        }
-        function resetAll() { if(confirm("모든 유저의 돈과 코인이 사라집니다. 진행할까요?")) socket.emit('admin_resetAll'); }
+        function give(type) { socket.emit('admin_giveAsset', { id: document.getElementById('u-id').value, amount: document.getElementById('a-val').value, type: type }); }
+        
+        socket.on('admin_updateRequests', (list) => {
+            const container = document.getElementById('request-list');
+            container.innerHTML = list.length === 0 ? "대기 중인 요청이 없습니다." : 
+                list.map(r => `
+                <div class="req-card">
+                    <span><b>${r.id}</b> (${r.amount}원)</span>
+                    <div><button class="ok" onclick="socket.emit('admin_approve','${r.id}')">승인</button>
+                    <button class="no" onclick="socket.emit('admin_reject','${r.id}')">거절</button></div>
+                </div>`).join('');
+        });
+
+        function approve(id) { socket.emit('admin_approve', id); }
+        function reject(id) { socket.emit('admin_reject', id); }
     </script>
 </body>
 </html>
