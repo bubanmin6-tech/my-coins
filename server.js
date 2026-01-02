@@ -11,15 +11,15 @@ let currentPrice = 100;
 let candles = []; 
 let db = {}; 
 let cOpen = 100, cHigh = 100, cLow = 100;
+let lastTime = 0;
 
 function initCandles() {
     candles = [];
     const now = Math.floor(Date.now() / 1000);
-    for(let i=0; i<40; i++) {
-        candles.push({ 
-            time: (now - (40 - i) * 5), 
-            open: 100, high: 100, low: 100, close: 100 
-        });
+    for(let i=0; i<50; i++) {
+        const t = now - (50 - i) * 5;
+        candles.push({ time: t, open: 100, high: 100, low: 100, close: 100 });
+        lastTime = t;
     }
 }
 initCandles();
@@ -29,30 +29,30 @@ app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
 
 setInterval(() => {
     const r = Math.random() * 100;
-    const drift = Math.floor(Math.random() * 10) + 2;
-    
+    const drift = Math.floor(Math.random() * 6) + 1;
     if (r < 50) currentPrice += drift;
     else currentPrice -= drift;
     
-    if (currentPrice < 10) currentPrice = 10;
+    if (currentPrice < 1) currentPrice = 1;
     if (currentPrice > cHigh) cHigh = currentPrice;
     if (currentPrice < cLow) cLow = currentPrice;
 
     let ranking = Object.values(db).map(u => ({ 
         id: u.id, 
-        total: u.cash + (u.coin * currentPrice) 
+        total: Math.floor(u.cash + (u.coin * currentPrice))
     })).sort((a, b) => b.total - a.total).slice(0, 5);
 
     io.emit('tick', { price: currentPrice, ranking: ranking });
 }, 1000);
 
 setInterval(() => {
-    const candle = { 
-        time: Math.floor(Date.now() / 1000),
-        open: cOpen, high: cHigh, low: cLow, close: currentPrice 
-    };
+    let now = Math.floor(Date.now() / 1000);
+    if (now <= lastTime) now = lastTime + 1;
+    lastTime = now;
+
+    const candle = { time: now, open: cOpen, high: cHigh, low: cLow, close: currentPrice };
     candles.push(candle);
-    if (candles.length > 200) candles.shift();
+    if (candles.length > 100) candles.shift();
     
     cOpen = currentPrice; cHigh = currentPrice; cLow = currentPrice;
     io.emit('candleUpdate', candles);
@@ -69,35 +69,23 @@ io.on('connection', (socket) => {
 
     socket.on('buy', (q) => {
         let u = db[socket.userId]; let cost = currentPrice * Number(q);
-        if (u && u.cash >= cost) { 
-            u.cash -= cost; u.coin += Number(q); 
-            socket.emit('updateUI', u); 
-        }
+        if (u && u.cash >= cost) { u.cash -= cost; u.coin += Number(q); socket.emit('updateUI', u); }
     });
 
     socket.on('sell', (q) => {
         let u = db[socket.userId];
-        if (u && u.coin >= Number(q)) { 
-            u.cash += currentPrice * Number(q); u.coin -= Number(q); 
-            socket.emit('updateUI', u); 
-        }
+        if (u && u.coin >= Number(q)) { u.cash += currentPrice * Number(q); u.coin -= Number(q); socket.emit('updateUI', u); }
     });
 
     socket.on('requestCharge', () => {
-        if(db[socket.userId]) {
-            db[socket.userId].cash += 500;
-            socket.emit('updateUI', db[socket.userId]);
-        }
+        if(db[socket.userId]) { db[socket.userId].cash += 500; socket.emit('updateUI', db[socket.userId]); }
     });
 
     socket.on('sendCoin', (d) => {
         let me = db[socket.userId], f = db[d.to], a = Number(d.amount);
-        if (me && f && me.coin >= a && a > 0) { 
-            me.coin -= a; f.coin += a; 
-            socket.emit('updateUI', me); 
-        }
+        if (me && f && me.coin >= a && a > 0) { me.coin -= a; f.coin += a; socket.emit('updateUI', me); }
     });
 });
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, '0.0.0.0', () => console.log(`🚀 READY`));
+server.listen(PORT, '0.0.0.0', () => console.log(`START`));
