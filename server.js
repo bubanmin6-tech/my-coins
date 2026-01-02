@@ -11,28 +11,27 @@ let currentPrice = 100;
 let candles = []; 
 let db = {}; 
 let cOpen = 100, cHigh = 100, cLow = 100;
-let lastTime = Math.floor(Date.now() / 1000) - 500;
+let lastTime = Math.floor(Date.now() / 1000);
 
 function initCandles() {
     candles = [];
-    let now = Math.floor(Date.now() / 1000) - 250;
-    for(let i=0; i<50; i++) {
-        let t = now + (i * 5);
-        candles.push({ time: t, open: 100, high: 100, low: 100, close: 100 });
-        lastTime = t;
+    let start = lastTime - 500;
+    for(let i=0; i<100; i++) {
+        candles.push({ time: start + (i * 5), open: 100, high: 100, low: 100, close: 100 });
     }
+    lastTime = candles[candles.length - 1].time;
 }
 initCandles();
 
 app.use(express.static(path.join(__dirname)));
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
+app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'admin.html')));
 
 setInterval(() => {
     const r = Math.random() * 100;
-    const drift = Math.floor(Math.random() * 6) + 1;
+    const drift = Math.floor(Math.random() * 5) + 1;
     if (r < 50) currentPrice += drift;
     else currentPrice -= drift;
-    
     if (currentPrice < 1) currentPrice = 1;
     if (currentPrice > cHigh) cHigh = currentPrice;
     if (currentPrice < cLow) cLow = currentPrice;
@@ -40,7 +39,7 @@ setInterval(() => {
     let ranking = Object.values(db).map(u => ({ 
         id: u.id, 
         total: Math.floor(u.cash + (u.coin * currentPrice))
-    })).sort((a, b) => b.total - a.total).slice(0, 5);
+    })).sort((a, b) => b.total - a.total).slice(0, 10);
 
     io.emit('tick', { price: currentPrice, ranking: ranking });
 }, 1000);
@@ -49,7 +48,7 @@ setInterval(() => {
     lastTime += 5;
     const candle = { time: lastTime, open: cOpen, high: cHigh, low: cLow, close: currentPrice };
     candles.push(candle);
-    if (candles.length > 100) candles.shift();
+    if (candles.length > 200) candles.shift();
     cOpen = currentPrice; cHigh = currentPrice; cLow = currentPrice;
     io.emit('candleUpdate', candles);
 }, 5000);
@@ -57,7 +56,7 @@ setInterval(() => {
 io.on('connection', (socket) => {
     socket.on('join', (id) => {
         let uid = id || "user_" + Math.floor(Math.random()*1000);
-        if (!db[uid]) db[uid] = { id: uid, cash: 500, coin: 0 };
+        if (!db[uid]) db[uid] = { id: uid, cash: 1000, coin: 0 };
         socket.userId = uid;
         socket.emit('init', db[uid]);
         socket.emit('candleUpdate', candles);
@@ -65,35 +64,46 @@ io.on('connection', (socket) => {
 
     socket.on('buy', (q) => {
         let u = db[socket.userId]; let cost = currentPrice * Number(q);
-        if (u && u.cash >= cost) { 
-            u.cash -= cost; u.coin += Number(q); 
-            socket.emit('updateUI', u); 
-        }
+        if (u && u.cash >= cost) { u.cash -= cost; u.coin += Number(q); socket.emit('updateUI', u); }
     });
 
     socket.on('sell', (q) => {
         let u = db[socket.userId];
-        if (u && u.coin >= Number(q)) { 
-            u.cash += currentPrice * Number(q); u.coin -= Number(q); 
-            socket.emit('updateUI', u); 
-        }
+        if (u && u.coin >= Number(q)) { u.cash += currentPrice * Number(q); u.coin -= Number(q); socket.emit('updateUI', u); }
     });
 
     socket.on('requestCharge', () => {
-        if(db[socket.userId]) {
-            db[socket.userId].cash += 500;
-            socket.emit('updateUI', db[socket.userId]);
-        }
+        if(db[socket.userId]) { db[socket.userId].cash += 500; socket.emit('updateUI', db[socket.userId]); }
     });
 
     socket.on('sendCoin', (d) => {
         let me = db[socket.userId], f = db[d.to], a = Number(d.amount);
         if (me && f && me.coin >= a && a > 0) { 
             me.coin -= a; f.coin += a; 
-            socket.emit('updateUI', me); 
+            socket.emit('updateUI', me);
+            io.emit('updateUI_specific', { userId: d.to, data: f });
         }
+    });
+
+    socket.on('admin_setPrice', (p) => {
+        currentPrice = Number(p);
+        io.emit('tick', { price: currentPrice });
+    });
+
+    socket.on('admin_giveAsset', (d) => {
+        let target = db[d.id];
+        if (target) {
+            if (d.type === 'cash') target.cash += Number(d.amount);
+            else target.coin += Number(d.amount);
+            io.emit('updateUI_specific', { userId: d.id, data: target });
+        }
+    });
+
+    socket.on('admin_resetAll', () => {
+        db = {};
+        io.emit('forceReload');
     });
 });
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, '0.0.0.0', () => console.log(`RUNNING`));
+server.listen(PORT, '0.0.0.0', () => console.log('SERVER RUNNING'));
