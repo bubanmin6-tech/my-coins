@@ -11,14 +11,13 @@ let currentPrice = 100;
 let candles = [];
 let db = {};
 let pendingRequests = [];
-let notice = "환영합니다! 가격 변동 주기가 1초로 변경되었습니다.";
 let cOpen = 100, cHigh = 100, cLow = 100;
 let lastTime = Math.floor(Date.now() / 1000);
 
 function initCandles() {
     candles = [];
-    let start = lastTime - 250;
-    for(let i=0; i<50; i++) {
+    let start = lastTime - 150;
+    for(let i=0; i<30; i++) {
         candles.push({ time: start + (i * 5), open: 100, high: 100, low: 100, close: 100 });
     }
 }
@@ -48,7 +47,7 @@ setInterval(() => {
     lastTime += 5;
     const candle = { time: lastTime, open: cOpen, high: cHigh, low: cLow, close: currentPrice };
     candles.push(candle);
-    if (candles.length > 50) candles.shift();
+    if (candles.length > 30) candles.shift();
     cOpen = currentPrice; cHigh = currentPrice; cLow = currentPrice;
     io.emit('candleUpdate', candles);
 }, 5000);
@@ -60,7 +59,6 @@ io.on('connection', (socket) => {
         socket.userId = uid;
         socket.emit('init', db[uid]);
         socket.emit('candleUpdate', candles);
-        socket.emit('updateNotice', notice);
     });
 
     socket.on('chat', (msg) => {
@@ -83,11 +81,6 @@ io.on('connection', (socket) => {
             io.emit('admin_updateRequests', pendingRequests);
             io.emit('updateUI_specific', { userId: uid, data: db[uid] });
         }
-    });
-
-    socket.on('admin_sendNotice', (msg) => {
-        notice = msg;
-        io.emit('updateNotice', notice);
     });
 
     socket.on('buy', (q) => {
